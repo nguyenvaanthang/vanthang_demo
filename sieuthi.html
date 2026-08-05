@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SIÊU THỊ HÀ PHƯƠNG</title>
+
+    <link rel="stylesheet" href="sieuthi.css">
+
+</head>
+
+<body>
+
+    <!-- ===================== ĐĂNG KÝ ===================== -->
+
+    <div id="registerPage" class="form-box">
+
+        <h1>SIÊU THỊ HÀ PHƯƠNG</h1>
+        <p class="store-tagline">Mang hạnh phúc đến với mọi nhà</p>
+
+        <h2>ĐĂNG KÝ NHÂN VIÊN</h2>
+
+        <input type="text" id="inviteCode" placeholder="Nhập mã được cấp">
+
+        <input type="text" id="regName" placeholder="Họ và tên">
+
+        <input type="tel" id="regPhone" placeholder="Số điện thoại" maxlength="10"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+        <input type="password" id="regPassword" placeholder="Mật khẩu">
+
+        <input type="text" id="regBirth" placeholder="Ngày sinh" onfocus="this.type='date'"
+            onblur="if(this.value==''){this.type='text'}">
+
+        <button onclick="register()">
+            Đăng ký
+        </button>
+
+        <p onclick="showLogin()">
+            Đã có tài khoản? Đăng nhập
+        </p>
+
+    </div>
+
+    <!-- ===================== ĐĂNG NHẬP ===================== -->
+
+    <div id="loginPage" class="form-box" style="display:none;">
+
+        <h1>SIÊU THỊ HÀ PHƯƠNG</h1>
+        <p class="store-tagline">Mang hạnh phúc đến với mọi nhà</p>
+
+        <h2>ĐĂNG NHẬP</h2>
+
+        <input type="text" id="loginName" placeholder="Tên nhân viên">
+
+        <input type="text" id="loginId" placeholder="Mã nhân viên">
+
+        <input type="password" id="loginPassword" placeholder="Mật khẩu">
+
+        <button onclick="login()">
+            Đăng nhập
+        </button>
+
+        <p onclick="showRegister()">
+            Quay lại đăng ký
+        </p>
+
+    </div>
+
+    <div id="qrModal" class="qr-modal" style="display:none;">
+
+        <div class="qr-modal-content">
+
+            <h3>Thanh toán thành công</h3>
+
+            <div id="qrCodeBox" class="qr-code-box"></div>
+
+            <div id="invoiceInfo" class="invoice-info"></div>
+
+            <button onclick="printLastInvoice()">In hóa đơn</button>
+            <button onclick="closeQrModal()">Đóng</button>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== PHẦN MỀM ===================== -->
+
+    <div id="mainApp" style="display:none;">
+
+        <!-- Banner -->
+
+        <div class="banner">
+
+            <div class="banner-decor banner-decor-left">
+                <span class="flower"></span>
+                <span class="leaf leaf-one"></span>
+                <span class="leaf leaf-two"></span>
+            </div>
+
+            <div class="banner-content">
+                <h1>
+                    SIÊU THỊ HÀ PHƯƠNG
+                </h1>
+                <p class="store-tagline">Mang hạnh phúc đến với mọi nhà</p>
+
+                <p id="time"></p>
+            </div>
+
+            <div class="banner-decor banner-decor-right">
+                <span class="leaf leaf-three"></span>
+                <span class="leaf leaf-four"></span>
+                <span class="flower flower-small"></span>
+            </div>
+
+        </div>
+
+        <!-- Menu -->
+
+        <div class="menu">
+
+            <button onclick="showSection('dashboard')">
+
+                Trang chủ
+
+            </button>
+
+            <button onclick="showSection('banhang')">
+
+                Bán hàng
+
+            </button>
+
+            <button onclick="showSection('khohang')">
+
+                Kho hàng
+
+            </button>
+
+            <button onclick="showSection('nhanvien')">
+
+                Nhân viên
+
+            </button>
+
+            <button onclick="showSection('thongke')">
+
+                Thống kê
+
+            </button>
+
+            <button onclick="showSection('hoadon')">
+
+                Hóa đơn
+
+            </button>
+
+            <button onclick="logout()">
+
+                Đăng xuất
+
+            </button>
+
+        </div>
+
+        <!-- ================= DASHBOARD ================= -->
+
+        <div id="dashboard" class="section">
+
+            <div class="dashboard">
+
+                <div class="card">
+
+                    <h2>Tổng sản phẩm</h2>
+
+                    <h1 id="tongSanPham">
+                        0
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h2>Tổng nhân viên</h2>
+
+                    <h1 id="tongNhanVien">
+                        0
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h2>Doanh thu</h2>
+
+                    <h1 id="doanhThu">
+                        0 VNĐ
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h2>Hóa đơn</h2>
+
+                    <h1 id="hoaDon">
+                        0
+                    </h1>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================= BÁN HÀNG ================= -->
+
+        <div id="banhang" class="section" style="display:none;">
+
+            <div class="container">
+
+                <div class="left">
+
+                    <h2>QUÉT MÃ SẢN PHẨM</h2>
+
+                    <video id="video" autoplay>
+
+                    </video>
+
+                    <input type="text" id="barcode" placeholder="Nhập mã sản phẩm">
+
+                    <button onclick="scanProduct()">
+
+                        Thêm sản phẩm
+
+                    </button>
+
+                </div>
+
+                <div class="right">
+
+                    <h2>HÓA ĐƠN</h2>
+
+                    <div class="search-box">
+
+                        <input type="text" id="search" placeholder="Tìm sản phẩm">
+
+                        <button onclick="searchProduct()">
+
+                            Tìm
+
+                        </button>
+
+                    </div>
+
+                    <div id="searchResult"></div>
+
+                    <table id="bill">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Tên</th>
+
+                                <th>Đơn giá</th>
+
+                                <th>Số lượng</th>
+
+                                <th>Thành tiền</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                        </tbody>
+
+                    </table>
+
+                    <p id="staff"></p>
+
+                    <div class="form-inline" style="margin:14px 0; gap:10px; align-items:center;">
+                        <label for="invoiceStatus" style="font-weight:600;">Trạng thái:</label>
+                        <select id="invoiceStatus" style="flex:1; padding:10px 12px; border:1px solid #d8e8dc; border-radius:10px;">
+                            <option value="Đã thanh toán">Đã thanh toán</option>
+                            <option value="Đang thanh toán">Đang thanh toán</option>
+                            <option value="Chưa thanh toán">Chưa thanh toán</option>
+                            <option value="Hủy">Hủy</option>
+                        </select>
+                    </div>
+
+                    <h2 id="total">
+
+                        Tổng tiền:
+                        0 VNĐ
+
+                    </h2>
+
+                    <button onclick="pay()">
+
+                        Thanh toán
+
+                    </button>
+
+                    <button id="printInvoiceBtn" style="display:none;margin-left:8px;" onclick="printLastInvoice()">
+
+                        In hóa đơn
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+        <!-- ================= QUẢN LÝ KHO ================= -->
+
+        <div id="khohang" class="section" style="display:none;">
+
+            <div class="box">
+
+                <h2>QUẢN LÝ KHO HÀNG</h2>
+
+                <div class="form-inline">
+
+                    <input type="text" id="newCode" placeholder="Mã sản phẩm">
+
+                    <input type="text" id="newName" placeholder="Tên sản phẩm">
+
+                    <input type="number" id="newPrice" placeholder="Đơn giá">
+
+                    <button onclick="addProduct()">
+
+                        Thêm sản phẩm
+
+                    </button>
+
+                </div>
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Mã</th>
+
+                            <th>Tên sản phẩm</th>
+
+                            <th>Giá</th>
+
+                            <th>Thao tác</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="productTable">
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- ================= QUẢN LÝ NHÂN VIÊN ================= -->
+
+        <div id="nhanvien" class="section" style="display:none;">
+
+            <div class="box">
+
+                <h2>DANH SÁCH NHÂN VIÊN</h2>
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Mã NV</th>
+
+                            <th>Họ tên</th>
+
+                            <th>SĐT</th>
+
+                            <th>Giờ làm</th>
+
+                            <th>Thao tác</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="staffTable">
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- ================= THỐNG KÊ ================= -->
+
+        <div id="thongke" class="section" style="display:none;">
+
+            <div class="dashboard">
+
+                <div class="card">
+
+                    <h3>Tổng sản phẩm</h3>
+
+                    <h1 id="tkProduct">
+
+                        0
+
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h3>Nhân viên</h3>
+
+                    <h1 id="tkStaff">
+
+                        0
+
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h3>Doanh thu</h3>
+
+                    <h1 id="tkMoney">
+
+                        0 VNĐ
+
+                    </h1>
+
+                </div>
+
+                <div class="card">
+
+                    <h3>Sản phẩm đã bán</h3>
+
+                    <h1 id="tkSold">
+
+                        0
+
+                    </h1>
+
+                </div>
+
+            </div>
+
+            <br>
+
+            <div class="box">
+
+                <h2>Hoạt động hệ thống</h2>
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Thời gian</th>
+
+                            <th>Nhân viên</th>
+
+                            <th>Hoạt động</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="historyTable">
+
+                        <tr>
+
+                            <td colspan="3">
+
+                                Chưa có dữ liệu
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- ================= HÓA ĐƠN ================= -->
+
+        <div id="hoadon" class="section" style="display:none;">
+
+            <div class="box">
+
+                <h2>DANH SÁCH HÓA ĐƠN</h2>
+
+                <div class="form-inline" style="margin-bottom:16px; gap:8px; align-items:center;">
+                        <input type="text" id="searchInvoiceCode" placeholder="Nhập mã hóa đơn, ví dụ HD12345678" style="flex:1; padding:10px; border:1px solid #d8e8dc; border-radius:10px;">
+                    <button onclick="renderInvoices()" style="padding:10px 16px; border:none; border-radius:10px; background:#f5f5f5; color:#274338; cursor:pointer;">Xem tất cả</button>
+                </div>
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Mã hóa đơn</th>
+
+                            <th>Ngày</th>
+
+                            <th>Nhân viên</th>
+
+                            <th>Tổng tiền</th>
+
+                            <th>Trạng thái</th>
+
+                            <th>Sản phẩm</th>
+                            
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="invoiceTable">
+
+                        <tr>
+
+                            <td colspan="6">
+
+                                Chưa có hóa đơn
+
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <!-- ================= FOOTER ================= -->
+
+        <footer>
+
+            <p>
+
+                © 2025
+
+                SIÊU THỊ HÀ PHƯƠNG
+
+            </p>
+
+        </footer>
+
+    </div>
+
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
