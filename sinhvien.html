@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Sinh Viên</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <link rel="stylesheet" href="sinhvien.css">
+</head>
+
+<body class="login-page-active">
+
+    <div class="login-page">
+        <div class="login-card">
+            <h2>Đăng nhập sinh viên</h2>
+            <p>STUDENT</p>
+            <form id="loginForm" onsubmit="handleStudentLogin(event)">
+                <input type="text" id="loginMasv" placeholder="Mã sinh viên" required>
+                <input type="password" id="loginPassword" placeholder="Mật khẩu" required>
+                <button type="button" onclick="handleStudentLogin()">
+                    <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+                </button>
+            </form>
+            <p class="login-note">Mật khẩu mặc định: <strong>123456</strong></p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+
+    <div class="sidebar">
+
+        <div class="logo">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <h2>StudentMS</h2>
+        </div>
+
+        <ul>
+
+            <li class="active" onclick="selectMenu(this, 'dashboardSection')">
+                <i class="fa-solid fa-house"></i>
+                Dashboard
+            </li>
+
+            <li onclick="selectMenu(this, 'sinhvienSection')">
+                <i class="fa-solid fa-user-graduate"></i>
+                Sinh viên
+            </li>
+
+            <li onclick="selectMenu(this, 'khoaSection')">
+                <i class="fa-solid fa-building-columns"></i>
+                Khoa
+            </li>
+
+            <li onclick="selectMenu(this, 'chuyennganhSection')">
+                <i class="fa-solid fa-book"></i>
+                Chuyên ngành
+            </li>
+
+            <li onclick="selectMenu(this, 'lopSection')">
+                <i class="fa-solid fa-school"></i>
+                Lớp
+            </li>
+
+            <li onclick="selectMenu(this, 'diemSection')">
+                <i class="fa-solid fa-square-poll-vertical"></i>
+                Điểm
+            </li>
+
+            <li onclick="selectMenu(this, 'paymentSection')">
+                <i class="fa-solid fa-money-bill-wave"></i>
+                Thanh toán
+            </li>
+
+            <li onclick="selectMenu(this, 'thongkeSection')">
+                <i class="fa-solid fa-chart-column"></i>
+                Thống kê
+            </li>
+
+            <li onclick="logoutUser()">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Đăng xuất
+            </li>
+
+        </ul>
+
+    </div>
+
+    <!-- Main -->
+
+    <div class="main">
+
+        <!-- Header -->
+
+        <header>
+
+            <h1>Hệ Thống Quản Lý Sinh Viên</h1>
+
+            <div class="user">
+
+                <input type="text" placeholder="🔍 Tìm kiếm sinh viên...">
+
+                <img src="https://i.pravatar.cc/50?img=3" alt="Admin">
+
+                <span>Admin</span>
+
+            </div>
+
+        </header>
+
+        <div class="page-section" id="paymentSection">
+            <section class="payment-toolbar">
+                <div class="toolbar-card">
+                    <h2>Thanh toán tiền học</h2>
+                    <div class="toolbar-actions">
+                        <input type="text" id="paymentMasv" placeholder="Mã sinh viên">
+                        <input type="number" id="paymentAmount" placeholder="Số tiền (VNĐ)">
+                        <button onclick="payTuition()">Thanh toán</button>
+                        <button class="secondary" onclick="viewPaymentHistory()">Lịch sử</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="page-section active" id="dashboardSection">
+            <!-- Dashboard -->
+            <section class="cards">
+                <div class="card">
+
+                <i class="fa-solid fa-user-graduate"></i>
+
+                <div>
+
+                    <h2>560</h2>
+
+                    <p>Sinh viên</p>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <i class="fa-solid fa-building-columns"></i>
+
+                <div>
+
+                    <h2>8</h2>
+
+                    <p>Khoa</p>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <i class="fa-solid fa-school"></i>
+
+                <div>
+
+                    <h2>24</h2>
+
+                    <p>Lớp học</p>
+
+                </div>
+
+            </div>
+
+            <div class="card">
+
+                <i class="fa-solid fa-award"></i>
+
+                <div>
+
+                    <h2>91%</h2>
+
+                    <p>Tỷ lệ đạt</p>
+
+                </div>
+
+            </div>
+
+        </section>
+        </div>
+
+        <div class="page-section" id="sinhvienSection">
+        <!-- Form -->
+        <section class="form-box">
+
+            <h2>Thêm Sinh Viên</h2>
+
+            <div class="form">
+
+                <input type="text" id="masv" placeholder="Mã sinh viên">
+
+                <input type="text" id="hoten" placeholder="Họ và tên">
+
+                <select id="khoa">
+
+                    <option>Khoa Công nghệ thông tin</option>
+
+                    <option>Khoa Kế toán</option>
+
+                    <option>Khoa Quản trị nhân lực</option>
+
+                    <option>Khoa Quản trị kinh doanh</option>
+
+                    <option>Khoa Quản lý đất đai</option>
+
+                </select>
+
+                <select id="cn">
+
+                    <option value="" selected disabled>Chọn chuyên ngành</option>
+
+                    <option>Phát triển phần mềm</option>
+
+                    <option>Mạng máy tính</option>
+
+                    <option>Hệ thống thông tin</option>
+
+                    <option>Khoa học dữ liệu</option>
+
+                    <option>An toàn thông tin</option>
+
+                </select>
+
+                <select id="lop">
+                    <option value="" selected disabled>Chọn lớp</option>
+                    <option>DH14C1</option>
+                    <option>DH14C2</option>
+                    <option>DH14C3</option>
+                    <option>DH14C4</option>
+                    <option>DH14C5</option>
+                </select>
+
+                <input type="number" id="diem" placeholder="Điểm">
+
+                <button onclick="themSinhVien()">
+                    <i class="fa-solid fa-plus"></i>
+                    Thêm Sinh Viên
+                </button>
+
+            </div>
+
+        </section>
+        </div>
+
+        <div class="page-section" id="khoaSection">
+            <section class="page-box">
+                <h2>Khoa</h2>
+                <p>Danh sách khoa hiện có:</p>
+                <ul class="info-list">
+                    <li>Khoa Công nghệ thông tin</li>
+                    <li>Khoa Kế toán</li>
+                    <li>Khoa Quản trị nhân lực</li>
+                    <li>Khoa Quản trị kinh doanh</li>
+                    <li>Khoa Quản lý đất đai</li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="page-section" id="chuyennganhSection">
+            <section class="page-box">
+                <h2>Chuyên ngành</h2>
+                <p>Chọn một chuyên ngành để phụ trách:</p>
+                <ul class="info-list">
+                    <li>Phát triển phần mềm</li>
+                    <li>Mạng máy tính</li>
+                    <li>Hệ thống thông tin</li>
+                    <li>Khoa học dữ liệu</li>
+                    <li>An toàn thông tin</li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="page-section" id="lopSection">
+            <section class="page-box">
+                <h2>Lớp</h2>
+                <p>Danh sách 5 lớp hiện tại:</p>
+                <ul class="info-list">
+                    <li>DH14C1</li>
+                    <li>DH14C2</li>
+                    <li>DH14C3</li>
+                    <li>DH14C4</li>
+                    <li>DH14C5</li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="page-section" id="diemSection">
+            <section class="page-box">
+                <h2>Điểm</h2>
+                <p>Quản lý điểm sinh viên sẽ được cập nhật ở đây.</p>
+                <p>Hiện tại bạn có thể xem điểm trong danh sách sinh viên.</p>
+            </section>
+        </div>
+
+        <div class="page-section" id="thongkeSection">
+            <section class="page-box">
+                <h2>Thống kê</h2>
+                <p>Thống kê tổng quan về sinh viên và điểm số.</p>
+                <div class="stats-grid">
+                    <div class="stat-card"><strong id="statStudents">0</strong><span>Sinh viên</span></div>
+                    <div class="stat-card"><strong id="statClasses">0</strong><span>Lớp</span></div>
+                    <div class="stat-card"><strong id="statKhoa">0</strong><span>Khoa</span></div>
+                </div>
+            </section>
+        </div>
+
+        <section class="table-box">
+
+            <div class="table-header">
+
+                <h2>Danh Sách Sinh Viên</h2>
+
+                <button>
+
+                    <i class="fa-solid fa-file-excel"></i>
+
+                    Xuất Excel
+
+                </button>
+
+            </div>
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>Mã SV</th>
+
+                        <th>Họ tên</th>
+
+                        <th>Khoa</th>
+
+                        <th>Chuyên ngành</th>
+
+                        <th>Lớp</th>
+
+                        <th>Điểm</th>
+
+                        <th>Trạng thái</th>
+
+                        <th>Thao tác</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody id="studentTable">
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
