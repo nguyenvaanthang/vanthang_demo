@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RentMap - Tìm phòng trọ & Vinhome</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <!-- CSS RentMap -->
+    <link rel="stylesheet" href="thang.css">
+</head>
+<body>
+
+<!-- SPLASH SCREEN -->
+<div id="rentmapSplash" class="rm-splash">
+    <div class="rm-blob rm-blob-1"></div>
+    <div class="rm-blob rm-blob-2"></div>
+    <div class="rm-blob rm-blob-3"></div>
+
+    <div class="rm-floating-icons">
+        <span>🏠</span><span>🏢</span><span>📍</span><span>🔑</span><span>🗺️</span><span>❤️</span>
+    </div>
+
+    <div class="rm-splash-content">
+        <div class="rm-logo-circle">🏠</div>
+        <div class="rm-splash-brand"><span>Rent</span>Map</div>
+        <div class="rm-splash-title">TÌM CHỖ Ở • ĐĂNG TIN • KẾT NỐI</div>
+        <div class="rm-loading"><span></span><span></span><span></span></div>
+    </div>
+</div>
+
+<!-- ==================== TRANG CHỦ ==================== -->
+<div id="homePage" class="page-section active-page">
+    <header class="header">
+        <div class="logo" onclick="showPage('home')">🏠 <span>Rent</span>Map</div>
+
+        <nav class="menu">
+            <a href="#" data-nav="home" class="active" onclick="showPage('home'); return false;">🏠 Trang chủ</a>
+            <a href="#propertySection" data-nav="propertySection" onclick="scrollToSection('propertySection'); return false;">🏠 Phòng trọ</a>
+            <a href="#vinhomeSection" data-nav="vinhomeSection" onclick="scrollToSection('vinhomeSection'); return false;">🏢 Vinhome</a>
+            <a href="#mapSection" data-nav="mapSection" onclick="scrollToSection('mapSection'); return false;">🗺️ Bản đồ</a>
+            <a href="#" data-nav="post" onclick="checkPostLogin(); return false;">➕ Đăng tin</a>
+        </nav>
+
+        <div class="header-right" id="headerAuthActions">
+            <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Chuyển chế độ Sáng/Tối">🌙</button>
+            <button class="notification-btn" title="Thông báo">🔔</button>
+            <a href="#" class="login-btn" onclick="showPage('login'); return false;">Đăng nhập</a>
+            <a href="#" class="register-btn" onclick="showPage('register'); return false;">Đăng ký</a>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="hero">
+        <div class="hero-content">
+            <span class="hero-small-title">🏠 RENTMAP</span>
+            <h1>TÌM KIẾM CHỖ Ở<br><span>PHÙ HỢP VỚI BẠN</span></h1>
+            
+            <p>Chạm điểm đến, đón chốn an cư.</p>
+
+            <div class="hero-badges">
+                <span>🏠 Phòng trọ</span><span>🏢 Vinhome</span><span>📍 Gần bạn</span><span>💰 Giá tốt</span>
+            </div>
+
+            <!-- FORM TÌM KIẾM CÓ BỘ LỌC TIỆN ÍCH NÂNG CAO -->
+            <div class="search-box">
+                <div class="search-item">
+                    <label>📍 Địa điểm</label>
+                    <input type="text" id="locationInput" list="provinceOptions" placeholder="Nhập khu vực, quận/huyện...">
+                    <datalist id="provinceOptions">
+                        <option value="Hà Nội"><option value="Hồ Chí Minh"><option value="Đà Nẵng"><option value="Hải Phòng"><option value="Bắc Ninh">
+                    </datalist>
+                </div>
+
+                <div class="search-item">
+                    <label>🏠 Loại hình</label>
+                    <select id="propertyType">
+                        <option value="all">Tất cả loại hình</option>
+                        <option value="room">Phòng trọ</option>
+                        <option value="vinhome">Vinhome</option>
+                    </select>
+                </div>
+
+                <div class="search-item">
+                    <label>💰 Giá từ (From)</label>
+                    <input type="number" id="priceFrom" placeholder="VD: 2000000" min="0">
+                </div>
+
+                <div class="search-item">
+                    <label>💰 Đến giá (To)</label>
+                    <input type="number" id="priceTo" placeholder="VD: 10000000" min="0">
+                </div>
+
+                <button class="btn-search" onclick="searchProperty()">🔍 Tìm kiếm ngay</button>
+
+                <!-- BỘ LỌC TIỆN ÍCH LỌC NHANH -->
+                <div class="search-amenities-row">
+                    <span style="font-size:12px; font-weight:800; color:#475569;">⚡ Tiện ích mong muốn:</span>
+                    <label><input type="checkbox" class="filterAmenity" value="Wi-Fi"> 📶 Wi-Fi</label>
+                    <label><input type="checkbox" class="filterAmenity" value="Điều hòa"> ❄️ Điều hòa</label>
+                    <label><input type="checkbox" class="filterAmenity" value="Chỗ để xe"> 🛵 Chỗ để xe</label>
+                    <label><input type="checkbox" class="filterAmenity" value="Thang máy"> 🛗 Thang máy</label>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CATEGORY -->
+    <section class="category-section">
+        <div class="section-title">
+            <span class="section-mini-title">KHÁM PHÁ RENTMAP</span>
+            <h2>Bạn đang tìm gì?</h2>
+            <p>Lựa chọn loại hình bất động sản phù hợp với nhu cầu của bạn.</p>
+        </div>
+
+        <div class="category-container">
+            <div class="category-card room-card" onclick="showRoomMap(); scrollToSection('mapSection');">
+                <div class="category-icon">🏠</div>
+                <div>
+                    <h3>Phòng trọ</h3>
+                    <p>Tìm phòng trọ giá phù hợp với sinh viên và người đi làm.</p>
+                    <button>Xem phòng trọ →</button>
+                </div>
+            </div>
+
+            <div class="category-card vinhome-card" onclick="showVinhomeMap(); scrollToSection('mapSection');">
+                <div class="category-icon">🏢</div>
+                <div>
+                    <h3>Vinhome</h3>
+                    <p>Tìm căn hộ Vinhome theo khu vực và mức giá.</p>
+                    <button>Xem Vinhome →</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAP SECTION -->
+    <section class="map-section" id="mapSection">
+        <div class="section-title">
+            <span class="section-mini-title">RENTMAP MAP</span>
+            <h2>Khám phá trên bản đồ</h2>
+            <p>Xem vị trí các phòng trọ và Vinhome đã được kiểm duyệt trên hệ thống.</p>
+        </div>
+
+        <div class="map-filter">
+            <button class="filter-btn active" id="filterAll" onclick="showAll()">🗺️ Tất cả</button>
+            <button class="filter-btn room-filter" id="filterRoom" onclick="showRoomMap()">🔵 Phòng trọ</button>
+            <button class="filter-btn vinhome-filter" id="filterVinhome" onclick="showVinhomeMap()">🔴 Vinhome</button>
+            <button class="location-btn" onclick="locateUser()">📍 Vị trí của tôi</button>
+        </div>
+
+        <div class="map-wrapper">
+            <div id="map"></div>
+        </div>
+    </section>
+
+    <!-- PROPERTY LIST -->
+    <section class="property-section" id="propertySection">
+        <div class="section-title property-heading">
+            <div>
+                <span class="section-mini-title">TIN ĐĂNG MỚI</span>
+                <h2>Tin đăng nổi bật</h2>
+                <p>Những chỗ ở đã kiểm duyệt đang được quan tâm trên RentMap.</p>
+            </div>
+            <button class="view-all-btn" onclick="showAll(); scrollToSection('mapSection');">Xem tất cả trên bản đồ →</button>
+        </div>
+
+        <div class="property-container" id="propertyContainer"></div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="service-section">
+        <div class="section-title">
+            <span class="section-mini-title">RENTMAP SERVICES</span>
+            <h2>RentMap giúp bạn</h2>
+            <p>Tìm kiếm và thuê chỗ ở dễ dàng hơn.</p>
+        </div>
+
+        <div class="service-container">
+            <div class="service-card"><div class="service-icon">🗺️</div><h3>Tìm trên bản đồ</h3><p>Xem chính xác vị trí phòng trọ và Vinhome.</p></div>
+            <div class="service-card"><div class="service-icon">🔍</div><h3>Tìm kiếm nhanh</h3><p>Lọc theo khu vực, loại nhà và giá thuê.</p></div>
+            <div class="service-card"><div class="service-icon">💬</div><h3>Liên hệ chủ nhà</h3><p>Trao đổi trực tiếp với người đăng tin.</p></div>
+            <div class="service-card"><div class="service-icon">🛡️</div><h3>An toàn hơn</h3><p>Tin đăng được kiểm duyệt chất lượng bởi Admin.</p></div>
+        </div>
+    </section>
+
+    <!-- FOOTER CHUẨN CÂN ĐỐI -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <h2>🏠 <span>Rent</span>Map</h2>
+                <p>Nền tảng tìm kiếm và cho thuê phòng trọ, Vinhome trực quan trên bản đồ.</p>
+            </div>
+            
+            <div class="footer-links">
+                <h3>Liên kết</h3>
+                <a href="#" onclick="showPage('home'); return false;">Trang chủ</a>
+                <a href="#propertySection" onclick="scrollToSection('propertySection'); return false;">Tìm phòng</a>
+                <a href="#" onclick="checkPostLogin(); return false;">Đăng tin</a>
+            </div>
+
+            <div class="footer-links">
+                <h3>Hỗ trợ</h3>
+                <a href="#">Trợ giúp</a>
+                <a href="#">Điều khoản</a>
+                <a href="#">Chính sách bảo mật</a>
+            </div>
+        </div>
+        
+        <div class="copyright">
+            © 2026 RentMap - Website tìm phòng trọ và Vinhome
+        </div>
+    </footer>
+</div>
+
+<!-- ==================== TRANG QUẢN TRỊ VIÊN (ADMIN DASHBOARD) ==================== -->
+<section id="adminPage" class="page-section account-page">
+    <div class="account-page-header">
+        <div class="account-page-title">
+            <h1>🛡️ Trang Quản Trị Viên (Admin)</h1>
+            <p>Kiểm duyệt tin đăng, quản lý người dùng và xử lý báo cáo vi phạm.</p>
+        </div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </div>
+
+    <div class="account-shell">
+        <div class="admin-stats-grid">
+            <div class="admin-stat-card">
+                <h3>📦 Tổng tin đăng</h3>
+                <strong id="adminTotalListings">0</strong>
+            </div>
+            <div class="admin-stat-card pending">
+                <h3>⏳ Tin chờ duyệt</h3>
+                <strong id="adminPendingListings">0</strong>
+            </div>
+            <div class="admin-stat-card approved">
+                <h3>✅ Tin đã duyệt</h3>
+                <strong id="adminApprovedListings">0</strong>
+            </div>
+            <div class="admin-stat-card reports">
+                <h3>🚩 Báo cáo vi phạm</h3>
+                <strong id="adminTotalReports">0</strong>
+            </div>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="admin-tab-btn active" id="tabListingsBtn" onclick="switchAdminTab('listings')">📋 Duyệt tin đăng</button>
+            <button class="admin-tab-btn" id="tabUsersBtn" onclick="switchAdminTab('users')">👥 Quản lý người dùng</button>
+            <button class="admin-tab-btn" id="tabReportsBtn" onclick="switchAdminTab('reports')">🚩 Quản lý Báo cáo</button>
+        </div>
+
+        <div id="adminListingsTab" class="admin-tab-content active">
+            <div id="adminListingsContainer" class="account-list"></div>
+        </div>
+
+        <div id="adminUsersTab" class="admin-tab-content">
+            <div id="adminUsersContainer" class="account-list"></div>
+        </div>
+
+        <div id="adminReportsTab" class="admin-tab-content">
+            <div id="adminReportsContainer" class="account-list"></div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== TRANG CHI TIẾT BẤT ĐỘNG SẢN ==================== -->
+<section id="propertyDetailPage" class="page-section property-detail-page">
+    <header class="property-detail-header">
+        <div class="logo" onclick="showPage('home')">🏠 <span>Rent</span>Map</div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </header>
+
+    <main class="property-detail-content">
+        <article class="property-detail-card">
+            <div class="property-detail-image" id="propertyDetailImgBox">
+                <span id="propertyDetailIcon">🏠</span>
+                <span class="verified">✓ Đã xác thực</span>
+                <span id="propertyDetailVipBadge" class="vip-badge" style="display:none; top:12px; right:12px;">⭐ VIP</span>
+            </div>
+            <div class="property-detail-info">
+                <span id="propertyDetailType" class="property-type room-label">PHÒNG TRỌ</span>
+                <h1 id="propertyDetailTitle">---</h1>
+                <p id="propertyDetailLocation" class="location">---</p>
+
+                <div class="property-detail-facts">
+                    <div><span>Diện tích</span><strong id="propertyDetailArea">---</strong></div>
+                    <div><span>Tiện ích</span><strong id="propertyDetailAmenities">Khép kín</strong></div>
+                    <div><span>Lượt xem</span><strong id="propertyDetailViews">0</strong></div>
+                </div>
+
+                <div class="property-detail-price">
+                    <span>Giá thuê</span><strong id="propertyDetailPrice">---</strong><span>/tháng</span>
+                </div>
+
+                <p id="propertyDetailDescText" style="margin-top:15px; color:#4b5563; line-height:1.6;"></p>
+
+                <div class="poi-box">
+                    <h3>📍 Xung quanh đây có gì?</h3>
+                    <ul class="poi-list">
+                        <li>🚌 Trạm xe bus gần nhất: <strong>150m</strong></li>
+                        <li>🎓 Trường Đại Học / Học Viện: <strong>~500m</strong></li>
+                        <li>🛒 Chợ / Siêu thị tiện lợi: <strong>~200m</strong></li>
+                        <li>🏥 Bệnh viện / Phòng khám: <strong>1.2km</strong></li>
+                    </ul>
+                </div>
+
+                <div class="booking-box">
+                    <h3>📅 Đặt lịch hẹn xem phòng</h3>
+                    <form id="bookingForm" onsubmit="handleBooking(event)">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                            <input type="date" id="bookingDate" required>
+                            <input type="time" id="bookingTime" required>
+                        </div>
+                        <input type="text" id="bookingNote" placeholder="Ghi chú thêm (VD: Hẹn gặp lúc 17h)..." style="width:100%; margin-top:10px; padding:8px; border:1px solid #ccc; border-radius:6px;">
+                        <button type="submit" class="btn-search" style="width:100%; margin-top:10px; padding:10px;">Gửi yêu cầu hẹn gặp</button>
+                    </form>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="property-map-button" onclick="scrollToSection('mapSection')">🗺️ Xem trên bản đồ</button>
+                    <button class="btn-reject" onclick="reportCurrentProperty()">🚩 Báo cáo tin vi phạm</button>
+                </div>
+            </div>
+        </article>
+    </main>
+</section>
+
+<!-- ==================== TRANG ĐĂNG KÝ ==================== -->
+<div id="registerPage" class="page-section auth-page">
+    <div class="auth-background">
+        <div class="auth-card">
+            <button class="back-arrow-btn auth-back" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+            <div class="auth-logo">🏠 <span>Rent</span>Map</div>
+            <h1>Đăng ký tài khoản</h1>
+            <p class="subtitle">Tạo tài khoản để tìm kiếm và đăng tin bất động sản</p>
+
+            <form id="registerForm">
+                <div class="form-group"><label>Họ và tên</label><input type="text" id="fullName" placeholder="Nhập họ và tên" required></div>
+                <div class="form-group"><label>Số điện thoại</label><input type="tel" id="phone" placeholder="Nhập số điện thoại" required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="registerEmail" placeholder="Nhập email" required></div>
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <div class="password-box">
+                        <input type="password" id="registerPassword" placeholder="Nhập mật khẩu" required>
+                        <button type="button" onclick="togglePassword('registerPassword')">👁</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Nhập lại mật khẩu</label>
+                    <div class="password-box">
+                        <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu" required>
+                        <button type="button" onclick="togglePassword('confirmPassword')">👁</button>
+                    </div>
+                </div>
+                <div class="terms"><label><input type="checkbox" id="agreeTerms" required> Tôi đồng ý với điều khoản dịch vụ</label></div>
+
+                <div id="registerMessage" class="message"></div>
+                <button type="submit" class="register-button">Đăng ký</button>
+            </form>
+
+            <div class="login-link">
+                Đã có tài khoản? <a href="#" onclick="showPage('login'); return false;">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TRANG ĐĂNG NHẬP ==================== -->
+<div id="loginPage" class="page-section auth-page">
+    <div class="auth-background">
+        <div class="auth-card">
+            <button class="back-arrow-btn auth-back" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+            <div class="auth-logo">🏠 <span>Rent</span>Map</div>
+            <h1>Đăng nhập</h1>
+            <p class="subtitle">Đăng nhập để tìm kiếm và đăng tin bất động sản</p>
+
+            <form id="loginForm">
+                <div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="Nhập email (Admin: nguyenvanthang@gmail.com)" required></div>
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <div class="password-box">
+                        <input type="password" id="loginPassword" placeholder="Nhập mật khẩu (Admin: 15082006)" required>
+                        <button type="button" onclick="toggleLoginPassword()">👁</button>
+                    </div>
+                </div>
+                <div class="remember"><label><input type="checkbox" id="remember"> Ghi nhớ đăng nhập</label></div>
+
+                <div id="loginMessage" class="message"></div>
+                <button type="submit" class="login-button">Đăng nhập</button>
+            </form>
+
+            <div class="register-link">
+                Chưa có tài khoản? <a href="#" onclick="showPage('register'); return false;">Đăng ký ngay</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== HỒ SƠ CÁ NHÂN ==================== -->
+<section id="profilePage" class="page-section account-page">
+    <div class="account-page-header">
+        <div class="account-page-title">
+            <h1>👤 Hồ sơ cá nhân</h1>
+            <p>Quản lý thông tin tài khoản RentMap của bạn.</p>
+        </div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </div>
+
+    <div class="account-shell profile-shell">
+        <div class="profile-header-card">
+            <div class="profile-avatar-box">
+                <div class="profile-avatar-icon">👤</div>
+            </div>
+            <div class="profile-main-info">
+                <h2 id="profileName">---</h2>
+                <span id="profileRoleBadge" class="role-badge">Người dùng</span>
+            </div>
+        </div>
+
+        <div class="profile-details-grid">
+            <div class="profile-detail-card">
+                <div class="detail-icon">📧</div>
+                <div>
+                    <label>Địa chỉ Email</label>
+                    <strong id="profileEmail">---</strong>
+                </div>
+            </div>
+
+            <div class="profile-detail-card">
+                <div class="detail-icon">📞</div>
+                <div>
+                    <label>Số điện thoại</label>
+                    <strong id="profilePhone">---</strong>
+                </div>
+            </div>
+
+            <div class="profile-detail-card">
+                <div class="detail-icon">🛡️</div>
+                <div>
+                    <label>Quyền hạn tài khoản</label>
+                    <strong id="profileRoleText">Thành viên</strong>
+                </div>
+            </div>
+
+            <div class="profile-detail-card">
+                <div class="detail-icon">🟢</div>
+                <div>
+                    <label>Trạng thái</label>
+                    <strong style="color: #16a34a;">Đang hoạt động</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== TIN CỦA TÔI ==================== -->
+<section id="myListingsPage" class="page-section account-page">
+    <div class="account-page-header">
+        <div class="account-page-title">
+            <h1>📋 Tin Cho Thuê Của Tôi</h1>
+            <p>Quản lý các tin cho thuê bạn đã đăng, chuyển đổi trạng thái hoặc nâng cấp gói VIP.</p>
+        </div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </div>
+    <div class="account-shell">
+        <div id="myListingsContainer" class="account-list-grid"></div>
+    </div>
+</section>
+
+<!-- ==================== ĐĂNG TIN CHO THUÊ (CÓ UPLOAD ẢNH) ==================== -->
+<section id="postPage" class="page-section account-page">
+    <div class="account-page-header">
+        <div class="account-page-title">
+            <h1>✨ Đăng Tin Cho Thuê Mới</h1>
+            <p>Điền đầy đủ thông tin chi tiết, tải ảnh căn hộ và chọn vị trí ghim chính xác trên bản đồ.</p>
+        </div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </div>
+
+    <div class="account-shell post-shell">
+        <form id="postPropertyForm">
+            <div class="post-form-grid">
+                
+                <div class="post-column">
+                    <div class="post-form-group">
+                        <label for="postType">🏠 Loại hình bất động sản *</label>
+                        <select id="postType" required>
+                            <option value="">-- Chọn loại hình --</option>
+                            <option value="room">🏠 Phòng trọ sinh viên / Người đi làm</option>
+                            <option value="vinhome">🏢 Căn hộ Vinhome cao cấp</option>
+                        </select>
+                    </div>
+
+                    <div class="post-form-group">
+                        <label for="postTitle">📝 Tiêu đề tin đăng *</label>
+                        <input id="postTitle" type="text" placeholder="Ví dụ: Phòng trọ Full nội thất Cầu Giấy gần ĐHQG" required>
+                    </div>
+
+                    <div class="post-form-row">
+                        <div class="post-form-group">
+                            <label for="postPrice">💰 Giá thuê / tháng (VNĐ) *</label>
+                            <input id="postPrice" type="number" min="0" placeholder="3000000" required>
+                        </div>
+
+                        <div class="post-form-group">
+                            <label for="postArea">📐 Diện tích (m²) *</label>
+                            <input id="postArea" type="number" min="1" placeholder="25" required>
+                        </div>
+                    </div>
+
+                    <div class="post-form-row">
+                        <div class="post-form-group">
+                            <label for="postProvince">📍 Tỉnh / Thành phố *</label>
+                            <select id="postProvince" required>
+                                <option value="">-- Chọn tỉnh/thành --</option>
+                                <option>Hà Nội</option><option>Hồ Chí Minh</option><option>Đà Nẵng</option><option>Hải Phòng</option>
+                            </select>
+                        </div>
+
+                        <div class="post-form-group">
+                            <label for="postPhone">📞 SĐT liên hệ *</label>
+                            <input id="postPhone" type="tel" placeholder="09xxxxxxxx" required>
+                        </div>
+                    </div>
+
+                    <div class="post-form-group">
+                        <label for="postAddress">🏙️ Địa chỉ chi tiết (Đường, Phường/Quận) *</label>
+                        <input id="postAddress" type="text" placeholder="Ví dụ: Số 12 ngõ 80 Cổ Nhuế 2, Bắc Từ Liêm..." required>
+                    </div>
+                </div>
+
+                <div class="post-column">
+                    <!-- TẢI ẢNH THỰC TẾ -->
+                    <div class="post-form-group">
+                        <label for="postImageFile">🖼️ Tải ảnh thực tế phòng/căn hộ</label>
+                        <input type="file" id="postImageFile" accept="image/*" onchange="previewImage(event)">
+                        <div id="imagePreviewBox" class="image-preview-box">
+                            <span>📷 Xem trước ảnh ở đây</span>
+                        </div>
+                    </div>
+
+                    <div class="post-form-group">
+                        <label>⚡ Tiện ích đi kèm</label>
+                        <div class="amenity-badge-group">
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Wi-Fi"> 📶 Wi-Fi</label>
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Chỗ để xe"> 🛵 Chỗ để xe</label>
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Điều hòa"> ❄️ Điều hòa</label>
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Bếp"> 🍳 Bếp nấu</label>
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Thang máy"> 🛗 Thang máy</label>
+                            <label class="amenity-badge"><input type="checkbox" class="postAmenity" value="Bảo vệ"> 🛡️ Bảo vệ 24/7</label>
+                        </div>
+                    </div>
+
+                    <div class="post-form-group">
+                        <label for="postDescription">📄 Mô tả chi tiết *</label>
+                        <textarea id="postDescription" rows="3" placeholder="Mô tả vị trí, giờ giấc đi lại, chi phí điện nước, tiện ích xung quanh..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="post-form-group full">
+                    <div class="post-map-block">
+                        <div class="post-map-head">
+                            <div>
+                                <label style="font-weight: 800; color: #1e293b; font-size: 15px;">🗺️ Ghim vị trí chính xác trên bản đồ *</label>
+                                <p style="font-size: 13px; color: #64748b; margin-top: 4px;">Click chọn vị trí phòng của bạn trên bản đồ để người thuê dễ tìm thấy nhất.</p>
+                            </div>
+                            <div id="postCoordinates">📍 Chưa chọn vị trí</div>
+                        </div>
+                        <div id="postMap"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="postMessage" class="message" style="margin-top:15px;"></div>
+
+            <div class="post-actions">
+                <button type="button" class="post-cancel-btn" onclick="showPage('home')">Hủy bỏ</button>
+                <button type="submit" class="post-submit-btn">📤 Đăng tin cho Admin duyệt ngay</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- ==================== YÊU THÍCH ==================== -->
+<section id="favoritesPage" class="page-section account-page">
+    <div class="account-page-header">
+        <div class="account-page-title"><h1>❤️ Tin yêu thích</h1><p>Những bất động sản bạn đã bấm lưu.</p></div>
+        <button class="back-arrow-btn" onclick="showPage('home')" title="Quay lại trang chủ">←</button>
+    </div>
+    <div class="account-shell"><div id="favoritesContainer" class="account-list-grid"></div></div>
+</section>
+
+<!-- ==================== MODAL MÔ PHỎNG THANH TOÁN QR ĐẨY VIP ==================== -->
+<div id="paymentModal" class="modal-overlay">
+    <div class="modal-box">
+        <button class="modal-close-btn" onclick="closePaymentModal()">✕</button>
+        <h2>💎 Nâng Cấp Gói VIP Nổi Bật</h2>
+        <p style="font-size:13px; color:#64748b; margin-top:4px;">Gói VIP giúp tin của bạn hiển thị ưu tiên trên cùng bản đồ & nổi bật viền vàng!</p>
+        
+        <div class="qr-container">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=RENTMAP_VIP_PAYMENT" alt="Mã QR Thanh Toán">
+            <p><strong>Số tiền: 50.000 VNĐ / 30 ngày</strong></p>
+            <p style="font-size:12px; color:#64748b; margin-top:2px;">Nội dung: <span style="color:#2563eb; font-weight:bold;">RENTMAP VIP [ID]</span></p>
+        </div>
+
+        <button class="btn-search" style="width:100%; margin-top:18px; padding:12px;" onclick="confirmVipPayment()">✅ Tôi đã chuyển khoản xong</button>
+    </div>
+</div>
+
+<!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+<nav class="bottom-nav">
+    <a href="#" data-nav="home" class="active" onclick="showPage('home'); return false;">
+        <span>🏠</span><small>Trang chủ</small>
+    </a>
+    <a href="#propertySection" data-nav="propertySection" onclick="scrollToSection('propertySection'); return false;">
+        <span>🔎</span><small>Tìm kiếm</small>
+    </a>
+    <a href="#mapSection" data-nav="mapSection" onclick="scrollToSection('mapSection'); return false;">
+        <span>🗺️</span><small>Bản đồ</small>
+    </a>
+    <a href="#" data-nav="favorites" onclick="showFavorites(); return false;">
+        <span>❤️</span><small>Yêu thích</small>
+    </a>
+    <a href="#" data-nav="profile" onclick="showProfile(); return false;">
+        <span>👤</span><small>Cá nhân</small>
+    </a>
+</nav>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Firebase SDK Trực Tuyến (v9 Compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- Main JS -->
+<script src="main.js"></script>
+
+</body>
+</html>
