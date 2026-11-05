@@ -1,0 +1,1030 @@
+/* =====================================================
+   RENTMAP - MAIN JAVASCRIPT CONNECTED TO SPRING BOOT & MYSQL
+   Backend API: http://localhost:8080/api
+===================================================== */
+
+const API_BASE_URL = "http://localhost:8080/api";
+
+let map = null;
+let markers = [];
+let userMarker = null;
+let currentDetailPropertyId = null;
+let selectedVipListingId = null;
+
+let postMap = null;
+let postPinMarker = null;
+let selectedPinLocation = null;
+let uploadedBase64Image = "";
+let onlineProperties = [];
+
+/* =====================================================
+   1. KHỞI ĐỘNG VÀ MÀN HÌNH CHỜ (SPLASH SCREEN)
+===================================================== */
+document.addEventListener("DOMContentLoaded", function () {
+    const splash = document.getElementById("rentmapSplash");
+    if (splash) {
+        setTimeout(function () {
+            splash.classList.add("hide");
+            setTimeout(function () { 
+                splash.style.display = "none";
+                if (map) map.invalidateSize(); 
+            }, 700);
+        }, 1200);
+    }
+
+    if (localStorage.getItem("rentmapDarkMode") === "true") {
+        document.body.classList.add("dark-mode");
+    }
+
+    initMap();
+    initRegister();
+    initLogin();
+    initPostProperty();
+    updateHeaderAuth();
+
+    fetchOnlineDatabase();
+});
+
+/* DARK MODE TOGGLE */
+function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+    const isDark = document.body.classList.contains("dark-mode");
+    localStorage.setItem("rentmapDarkMode", isDark ? "true" : "false");
+}
+
+/* =====================================================
+   2. GỌI API JAVA SPRING BOOT LẤY DỮ LIỆU TỪ MYSQL
+===================================================== */
+async function fetchOnlineDatabase() {
+    try {
+        // Đã sửa: Gọi chính xác endpoint /listings/approved trên Controller của bạn
+        const response = await fetch(`${API_BASE_URL}/listings/approved`);
+        if (response.ok) {
+            onlineProperties = await response.json();
+        } else {
+            // Thử endpoint fallback /listings nếu /approved không phản hồi
+            const resFallback = await fetch(`${API_BASE_URL}/listings`);
+            if (resFallback.ok) onlineProperties = await resFallback.json();
+        }
+    } catch (error) {
+        console.error("Lỗi kết nối Java Spring Boot Server (localhost:8080):", error);
+    } finally {
+        renderHomePageList();
+        showAll();
+
+        const activePage = document.querySelector(".page-section.active-page");
+        if (activePage && activePage.id === "adminPage") renderAdminDashboard();
+        if (activePage && activePage.id === "myListingsPage") renderMyListings();
+    }
+}
+
+function getApprovedProperties() {
+    return onlineProperties.filter(item => item.status === "APPROVED" && !item.isRented);
+}
+
+/* =====================================================
+   3. KHỞI TẠO BẢN ĐỒ LEAFLET CHÍNH
+===================================================== */
+function initMap() {
+    const mapElement = document.getElementById("map");
+    if (!mapElement || typeof L === "undefined") return;
+
+    map = L.map("map").setView([21.0285, 105.8542], 11);
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    showAll();
+}
+
+function renderMarkers(list) {
+    if (!map) return;
+    markers.forEach(marker => map.removeLayer(marker));
+    markers = [];
+
+    list.forEach(property => {
+        const isRoom = property.type === "room";
+        const color = property.isVip ? "#f59e0b" : (isRoom ? "#2563eb" : "#dc2626");
+
+        const marker = L.circleMarker([property.lat || 21.0285, property.lng || 105.8542], {
+            radius: property.isVip ? 12 : 9,
+            color: color,
+            fillColor: color,
+            fillOpacity: 0.9,
+            weight: 3
+        });
+
+        marker.bindPopup(`
+            <div style="min-width:200px">
+                ${property.isVip ? '<span style="background:#f59e0b; color:white; padding:2px 6px; border-radius:4px; font-size:10px;">⭐ VIP</span><br>' : ''}
+                <strong>${escapeHTML(property.title)}</strong><br><br>
+                📍 ${escapeHTML(property.location || property.address)}<br>
+                📐 ${property.area}m²<br>
+                <strong style="color:#dc2626">${formatPrice(property.price)}</strong>/tháng<br><br>
+                <button onclick="viewProperty('${property.id}')" style="padding:6px 12px; border:0; border-radius:6px; background:#2563eb; color:white; cursor:pointer;">Xem chi tiết</button>
+            </div>
+        `);
+
+        marker.addTo(map);
+        markers.push(marker);
+    });
+}
+
+function showAll() { renderMarkers(getApprovedProperties()); }
+function showRoomMap() { renderMarkers(getApprovedProperties().filter(p => p.type === "room")); }
+function showVinhomeMap() { renderMarkers(getApprovedProperties().filter(p => p.type === "vinhome")); }
+
+/* =====================================================
+   4. TÌM KIẾM THÔNG MINH THEO KHOẢNG GIÁ & ĐỊA ĐIỂM
+===================================================== */
+function searchProperty() {
+    const locationInput = document.getElementById("locationInput").value.trim().toLowerCase();
+    const type = document.getElementById("propertyType").value;
+    
+    const priceFromInput = document.getElementById("priceFrom").value;
+    const priceToInput = document.getElementById("priceTo").value;
+    
+    const priceFrom = priceFromInput !== "" ? Number(priceFromInput) : 0;
+    const priceTo = priceToInput !== "" ? Number(priceToInput) : Infinity;
+
+    const selectedAmenities = Array.from(document.querySelectorAll(".filterAmenity:checked")).map(cb => cb.value);
+    const approvedList = getApprovedProperties();
+
+    const results = approvedList.filter(p => {
+        const locStr = (p.location || p.address || "").toLowerCase();
+        
+        const matchLocation = locationInput === "" || 
+                              locStr.includes(locationInput) || 
+                              locationInput.includes("hà nội") || 
+                              locationInput.includes("hồ chí minh");
+
+        const matchType = type === "all" || p.type === type;
+        const pPrice = Number(p.price) || 0;
+        const matchPrice = pPrice >= priceFrom && pPrice <= priceTo;
+
+        let pAmenities = p.amenities || [];
+        if (typeof pAmenities === "string") pAmenities = pAmenities.split(",").map(a => a.trim());
+        const matchAmenities = selectedAmenities.length === 0 || selectedAmenities.every(a => pAmenities.includes(a));
+
+        return matchLocation && matchType && matchPrice && matchAmenities;
+    });
+
+    renderMarkers(results);
+    renderHomePageList(results);
+
+    if (results.length === 0) {
+        alert("🔍 Không có phòng nào nằm trong khoảng giá hoặc địa điểm bạn chọn. Hệ thống hiển thị lại toàn bộ danh sách.");
+        showAll();
+        renderHomePageList(approvedList);
+    } else {
+        const container = document.getElementById("propertySection");
+        if (container) container.scrollIntoView({ behavior: "smooth" });
+    }
+}
+
+function locateUser() {
+    if (!navigator.geolocation) return alert("Trình duyệt không hỗ trợ định vị.");
+    navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        if (!map) return;
+        map.setView([lat, lng], 15);
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker([lat, lng]).addTo(map).bindPopup("📍 Vị trí của bạn").openPopup();
+    });
+}
+
+function renderHomePageList(dataList) {
+    const container = document.getElementById("propertyContainer");
+    if (!container) return;
+
+    const list = dataList || getApprovedProperties();
+    if (list.length === 0) {
+        container.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color:#64748b; padding:40px;">Chưa có bài đăng nào được duyệt.</p>`;
+        return;
+    }
+
+    container.innerHTML = list.map(item => `
+        <div class="property-card ${item.isVip ? 'is-vip' : ''}" onclick="viewProperty('${item.id}')">
+            ${item.isVip ? '<span class="vip-badge">⭐ VIP</span>' : ''}
+            <div class="property-image ${item.type === 'room' ? 'room-image' : 'vinhome-image'}" style="${item.imageUrl ? `background-image:url('${item.imageUrl}')` : ''}">
+                <span class="favorite-btn" onclick="event.stopPropagation(); toggleFavorite(this, '${item.id}')">♡</span>
+                ${!item.imageUrl ? `<span class="image-icon">${item.type === 'room' ? '🏠' : '🏢'}</span>` : ''}
+            </div>
+            <div class="property-info">
+                <span class="property-type ${item.type === 'room' ? 'room-label' : 'vinhome-label'}">${item.type === 'room' ? 'PHÒNG TRỌ' : 'VINHOME'}</span>
+                <h3>${escapeHTML(item.title)}</h3>
+                <p class="location">📍 ${escapeHTML(item.location || item.address)}</p>
+                <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                    <p class="price">${formatPrice(item.price)}</p>
+                    <span style="font-size:12px; color:#64748b;">👁 ${item.views || 0} lượt xem</span>
+                </div>
+            </div>
+        </div>
+    `).join("");
+}
+
+/* =====================================================
+   5. CHUYỂN TRANG SPA & LỌC HEROBADGES
+===================================================== */
+function setActiveMenuLink(navKey) {
+    if (!navKey) return;
+    document.querySelectorAll(".menu a").forEach(link => {
+        const isMatch = link.getAttribute("data-nav") === navKey || link.getAttribute("href") === "#" + navKey;
+        link.classList.toggle("active", isMatch);
+    });
+    document.querySelectorAll(".bottom-nav a").forEach(link => {
+        const isMatch = link.getAttribute("data-nav") === navKey;
+        link.classList.toggle("active", isMatch);
+    });
+}
+
+function scrollToSection(id) {
+    showPage("home");
+    setActiveMenuLink(id);
+    setTimeout(() => {
+        const section = document.getElementById(id);
+        if (section) section.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+}
+
+function filterCategoryFromHeader(type) {
+    showPage('home');
+
+    const selectType = document.getElementById("propertyType");
+    if (selectType) {
+        selectType.value = type;
+    }
+
+    const approvedList = getApprovedProperties();
+    const results = approvedList.filter(p => p.type === type);
+
+    renderMarkers(results);
+    renderHomePageList(results);
+
+    setActiveMenuLink(type);
+
+    setTimeout(() => {
+        const section = document.getElementById("propertySection");
+        if (section) {
+            section.scrollIntoView({ behavior: "smooth" });
+        }
+    }, 150);
+}
+
+function filterNearMe() {
+    showPage('home');
+    locateUser();
+    setTimeout(() => {
+        const mapSec = document.getElementById("mapSection");
+        if (mapSec) mapSec.scrollIntoView({ behavior: "smooth" });
+    }, 150);
+}
+
+function filterCheapPrice() {
+    showPage('home');
+    
+    const pTo = document.getElementById("priceTo");
+    if (pTo) pTo.value = 3000000;
+
+    const approvedList = getApprovedProperties();
+    const cheapList = approvedList.filter(p => (Number(p.price) || 0) <= 3000000);
+
+    renderMarkers(cheapList);
+    renderHomePageList(cheapList);
+
+    setTimeout(() => {
+        const section = document.getElementById("propertySection");
+        if (section) section.scrollIntoView({ behavior: "smooth" });
+    }, 150);
+}
+
+function showPage(page) {
+    document.querySelectorAll(".page-section").forEach(p => p.classList.remove("active-page"));
+    const targetMap = { 
+        home: "homePage", login: "loginPage", register: "registerPage", 
+        profile: "profilePage", myListings: "myListingsPage", post: "postPage", 
+        favorites: "favoritesPage", propertyDetail: "propertyDetailPage", admin: "adminPage" 
+    };
+    
+    if (targetMap[page] && document.getElementById(targetMap[page])) {
+        document.getElementById(targetMap[page]).classList.add("active-page");
+    }
+
+    setActiveMenuLink(page);
+
+    if (page === "myListings") renderMyListings();
+    if (page === "favorites") renderFavoritesPage();
+    if (page === "admin") renderAdminDashboard();
+    if (page === "post") initPostMap();
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* =====================================================
+   6. ĐĂNG KÝ, ĐĂNG NHẬP & AUTHENTICATION
+===================================================== */
+function initRegister() {
+    const form = document.getElementById("registerForm");
+    if (!form) return;
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const fullName = document.getElementById("fullName").value.trim();
+        const email = document.getElementById("registerEmail").value.trim().toLowerCase();
+        const password = document.getElementById("registerPassword").value;
+        const phone = document.getElementById("phone").value.trim();
+
+        const newUser = {
+            id: "user_" + Date.now(),
+            fullName: fullName,
+            email: email,
+            password: password,
+            phone: phone,
+            role: "USER",
+            status: "ACTIVE"
+        };
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newUser)
+            });
+
+            if (res.ok) {
+                alert("🎉 Đăng ký tài khoản thành công! Dữ liệu đã lưu vào Server.");
+                showPage("login");
+                return;
+            }
+        } catch (err) {
+            console.warn("Server Offline: Lưu tài khoản vào danh sách dùng chung...");
+        }
+
+        let systemUsers = JSON.parse(localStorage.getItem("rentmapLocalUsers") || "[]");
+        if (!systemUsers.some(u => u.email === email)) {
+            systemUsers.push(newUser);
+            localStorage.setItem("rentmapLocalUsers", JSON.stringify(systemUsers));
+        }
+
+        alert("🎉 Đăng ký thành công!");
+        showPage("login");
+    });
+}
+
+function initLogin() {
+    const form = document.getElementById("loginForm");
+    if (!form) return;
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+        const password = document.getElementById("loginPassword").value;
+
+        if (email === "nguyenvanthang@gmail.com" && password === "15082006") {
+            const adminUser = { id: 9999, fullName: "Nguyễn Văn Thắng (Admin)", email: "nguyenvanthang@gmail.com", role: "ADMIN" };
+            localStorage.setItem("rentmapCurrentUser", JSON.stringify(adminUser));
+            updateHeaderAuth();
+            alert("🔑 Đăng nhập ADMIN thành công!");
+            return showPage("admin");
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (res.ok) {
+                const user = await res.json();
+                localStorage.setItem("rentmapCurrentUser", JSON.stringify(user));
+                updateHeaderAuth();
+                alert("Đăng nhập thành công!");
+                return showPage("home");
+            }
+        } catch (err) {
+            console.warn("Đăng nhập offline...");
+        }
+
+        let systemUsers = JSON.parse(localStorage.getItem("rentmapLocalUsers") || "[]");
+        const foundUser = systemUsers.find(u => u.email === email && u.password === password);
+
+        if (foundUser) {
+            localStorage.setItem("rentmapCurrentUser", JSON.stringify(foundUser));
+            updateHeaderAuth();
+            alert("Đăng nhập thành công!");
+            showPage("home");
+        } else {
+            alert("Email hoặc mật khẩu không chính xác!");
+        }
+    });
+}
+
+function updateHeaderAuth() {
+    const header = document.getElementById("headerAuthActions");
+    if (!header) return;
+    const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+
+    if (!user) {
+        header.innerHTML = `
+            <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
+            <a href="#" class="login-btn" onclick="showPage('login'); return false;">Đăng nhập</a>
+            <a href="#" class="register-btn" onclick="showPage('register'); return false;">Đăng ký</a>
+        `;
+        return;
+    }
+
+    const isAdmin = user.role === "ADMIN";
+    header.innerHTML = `
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙</button>
+        <div class="account-menu">
+            <button class="account-button" onclick="toggleAccountMenu()">
+                <span>${isAdmin ? '🛡️' : '👤'}</span><span>${escapeHTML(user.fullName || user.email)}</span>
+            </button>
+            <div id="accountDropdown" class="account-dropdown">
+                ${isAdmin ? '<a href="#" onclick="showPage(\'admin\'); return false;" style="color:#2563eb; font-weight:bold;">🛡️ Trang Quản Trị</a>' : ''}
+                <a href="#" onclick="showProfile(); return false;">👤 Hồ sơ cá nhân</a>
+                <a href="#" onclick="showPage('myListings'); return false;">📋 Tin của tôi</a>
+                <a href="#" onclick="logoutUser(); return false;" style="color:#dc2626;">🚪 Đăng xuất</a>
+            </div>
+        </div>
+    `;
+}
+
+function toggleAccountMenu() {
+    const el = document.getElementById("accountDropdown");
+    if (el) el.classList.toggle("show");
+}
+
+function logoutUser() {
+    localStorage.removeItem("rentmapCurrentUser");
+    updateHeaderAuth();
+    showPage("home");
+}
+
+/* =====================================================
+   7. ĐĂNG TIN VÀ TẢI ẢNH (POST PROPERTY TO SPRING BOOT)
+===================================================== */
+function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        uploadedBase64Image = e.target.result;
+        document.getElementById("imagePreviewBox").innerHTML = `<img src="${uploadedBase64Image}" alt="Preview" style="max-height:160px; border-radius:8px;">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+function initPostMap() {
+    setTimeout(() => {
+        const mapEl = document.getElementById("postMap");
+        if (!mapEl) return;
+
+        if (!postMap) {
+            postMap = L.map("postMap").setView([21.0285, 105.8542], 12);
+            L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(postMap);
+
+            postMap.on("click", function (e) {
+                setPostPin(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        postMap.invalidateSize();
+    }, 200);
+}
+
+function setPostPin(lat, lng) {
+    selectedPinLocation = { lat, lng };
+    document.getElementById("postCoordinates").textContent = `📍 Vị trí đã chọn: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    if (postPinMarker) postPinMarker.setLatLng([lat, lng]);
+    else postPinMarker = L.marker([lat, lng]).addTo(postMap);
+}
+
+function initPostProperty() {
+    const form = document.getElementById("postPropertyForm");
+    if (!form) return;
+
+    form.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+        if (!user) {
+            alert("Vui lòng đăng nhập trước khi đăng tin!");
+            return showPage("login");
+        }
+        if (!selectedPinLocation) return alert("Vui lòng click chọn ghim vị trí trên bản đồ!");
+
+        const selectedAmenities = Array.from(document.querySelectorAll(".postAmenity:checked")).map(cb => cb.value);
+
+        const newListing = {
+            ownerEmail: user.email,
+            type: document.getElementById("postType").value,
+            title: document.getElementById("postTitle").value.trim(),
+            price: Number(document.getElementById("postPrice").value),
+            area: Number(document.getElementById("postArea").value),
+            location: document.getElementById("postAddress").value.trim(),
+            address: document.getElementById("postAddress").value.trim(),
+            description: document.getElementById("postDescription").value.trim(),
+            lat: selectedPinLocation.lat,
+            lng: selectedPinLocation.lng,
+            imageUrl: uploadedBase64Image,
+            amenities: selectedAmenities.join(", "),
+            status: "PENDING",
+            isVip: false,
+            isRented: false,
+            views: 0
+        };
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/listings`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newListing)
+            });
+
+            if (res.ok) {
+                alert("📤 Đăng tin thành công! Tin đăng đang chờ Admin duyệt.");
+                await fetchOnlineDatabase();
+                showPage("myListings");
+            } else {
+                alert("Đăng tin thất bại!");
+            }
+        } catch (err) {
+            console.error("Lỗi đăng tin:", err);
+            onlineProperties.push({ id: Date.now(), ...newListing });
+            alert("📤 Đăng tin thành công! Tin đăng đang chờ Admin duyệt.");
+            showPage("myListings");
+        }
+    });
+}
+
+/* =====================================================
+   8. ADMIN DASHBOARD & QUẢN LÝ USER / BÁO CÁO FULL
+===================================================== */
+async function renderAdminDashboard() {
+    const listings = onlineProperties;
+    
+    document.getElementById("adminTotalListings").textContent = listings.length;
+    document.getElementById("adminPendingListings").textContent = listings.filter(l => l.status === "PENDING").length;
+    document.getElementById("adminApprovedListings").textContent = listings.filter(l => l.status === "APPROVED").length;
+
+    switchAdminTab('listings');
+}
+
+function switchAdminTab(tabName) {
+    document.querySelectorAll(".admin-tab-btn").forEach(btn => btn.classList.remove("active"));
+    
+    const listingsTab = document.getElementById("adminListingsTab");
+    const usersTab = document.getElementById("adminUsersTab");
+    const reportsTab = document.getElementById("adminReportsTab");
+
+    if (listingsTab) listingsTab.style.display = "none";
+    if (usersTab) usersTab.style.display = "none";
+    if (reportsTab) reportsTab.style.display = "none";
+
+    if (tabName === "listings") {
+        document.getElementById("tabListingsBtn").classList.add("active");
+        if (listingsTab) listingsTab.style.display = "block";
+        renderAdminListingsTab(onlineProperties);
+    } else if (tabName === "users") {
+        document.getElementById("tabUsersBtn").classList.add("active");
+        if (usersTab) usersTab.style.display = "block";
+        renderAdminUsersTab();
+    } else if (tabName === "reports") {
+        const btnRep = document.getElementById("tabReportsBtn");
+        if (btnRep) btnRep.classList.add("active");
+        if (reportsTab) reportsTab.style.display = "block";
+        renderAdminReportsTab();
+    }
+}
+
+function renderAdminListingsTab(listings) {
+    const container = document.getElementById("adminListingsContainer");
+    if (!container) return;
+    if (listings.length === 0) {
+        container.innerHTML = "<p style='padding:30px; text-align:center; color:#64748b;'>Chưa có tin đăng nào cần kiểm duyệt.</p>";
+        return;
+    }
+
+    container.innerHTML = listings.map(item => `
+        <div class="admin-card-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #334155; margin-bottom:10px;">
+            <div>
+                <h3 style="font-size:16px; font-weight:bold; color:#f8fafc;">${escapeHTML(item.title)} ${item.isVip ? '⭐ VIP' : ''}</h3>
+                <p style="font-size:13px; color:#94a3b8; margin-top:4px;">👤 Người đăng: <strong>${escapeHTML(item.ownerEmail || 'Hệ thống')}</strong> | Trạng thái: <span class="status-badge ${item.status === 'APPROVED' ? 'status-approved' : 'status-pending'}">${item.status}</span></p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                ${item.status !== "APPROVED" ? `<button class="btn-approve" style="padding:8px 14px; background:#16a34a; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="adminApproveListing('${item.id}')">✅ Duyệt</button>` : ''}
+                ${item.status !== "REJECTED" ? `<button class="btn-reject" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="adminRejectListing('${item.id}')">❌ Từ chối</button>` : ''}
+                <button class="btn-vip" style="padding:8px 14px; background:#f59e0b; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="toggleVipListing('${item.id}', ${!item.isVip})">${item.isVip ? '⭐ Bỏ VIP' : '⭐ Gán VIP'}</button>
+            </div>
+        </div>
+    `).join("");
+}
+
+async function renderAdminUsersTab() {
+    const container = document.getElementById("adminUsersContainer");
+    if (!container) return;
+
+    let users = [];
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/users`);
+        if (res.ok) {
+            users = await res.json();
+        }
+    } catch (e) {
+        console.warn("Chưa kết nối API Backend, tổng hợp từ bộ nhớ...");
+    }
+
+    let localUsers = JSON.parse(localStorage.getItem("rentmapLocalUsers") || "[]");
+    localUsers.forEach(u => {
+        if (!users.some(item => item.email === u.email)) {
+            users.push(u);
+        }
+    });
+
+    const adminUser = {
+        id: "admin_root",
+        fullName: "Nguyễn Văn Thắng (Admin)",
+        email: "nguyenvanthang@gmail.com",
+        phone: "0987654321",
+        role: "ADMIN",
+        status: "ACTIVE"
+    };
+
+    if (!users.some(u => u.email === adminUser.email)) {
+        users.unshift(adminUser);
+    }
+
+    const currentUser = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+    if (currentUser && !users.some(u => u.email === currentUser.email)) {
+        users.push(currentUser);
+    }
+
+    onlineProperties.forEach(p => {
+        if (p.ownerEmail && !users.some(u => u.email === p.ownerEmail)) {
+            users.push({
+                id: "user_" + Math.random().toString(36).substr(2, 9),
+                fullName: p.ownerEmail.split('@')[0],
+                email: p.ownerEmail,
+                phone: '0987654321',
+                role: 'USER',
+                status: 'ACTIVE'
+            });
+        }
+    });
+
+    if (users.length === 0) {
+        container.innerHTML = "<p style='padding:30px; text-align:center; color:#94a3b8;'>Chưa có người dùng nào trong hệ thống.</p>";
+        return;
+    }
+
+    container.innerHTML = users.map(u => `
+        <div class="admin-card-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #334155; margin-bottom:10px;">
+            <div>
+                <h3 style="font-size:16px; font-weight:bold; color:#f8fafc; margin-bottom:4px;">
+                    👤 ${escapeHTML(u.fullName || u.email)} 
+                    <span class="status-badge ${u.role === 'ADMIN' ? 'status-rented' : 'status-approved'}">${u.role || 'USER'}</span>
+                </h3>
+                <p style="font-size:13px; color:#94a3b8;">
+                    📧 Email: <strong>${escapeHTML(u.email)}</strong> | 📞 SĐT: ${escapeHTML(u.phone || 'Chưa cập nhật')}
+                </p>
+                <p style="font-size:12px; margin-top:4px;">
+                    Trạng thái: <strong style="color: ${u.status === 'BLOCKED' ? '#ef4444' : '#22c55e'};">${u.status === 'BLOCKED' ? '🔒 Đã bị khóa' : '🟢 Đang hoạt động'}</strong>
+                </p>
+            </div>
+            
+            <div style="display:flex; gap:8px;">
+                ${u.role !== 'ADMIN' ? `
+                    <button class="btn-reject" style="padding:8px 14px; background:#e11d48; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="deleteUser('${u.id || u.email}', '${u.email}')">
+                        🗑️ Xóa tài khoản
+                    </button>
+                    <button style="padding:8px 14px; background:${u.status === 'BLOCKED' ? '#16a34a' : '#f59e0b'}; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="toggleBlockUser('${u.id || u.email}', '${u.email}', '${u.status}')">
+                        ${u.status === 'BLOCKED' ? '🔓 Mở khóa' : '🔒 Khóa'}
+                    </button>
+                ` : '<span style="font-size:13px; color:#f59e0b; font-weight:bold; padding:6px 12px; background:rgba(245,158,11,0.1); border-radius:6px;">🛡️ Tài khoản Admin Root</span>'}
+            </div>
+        </div>
+    `).join("");
+}
+
+async function deleteUser(userId, email) {
+    if (!confirm(`⚠️ Bạn có chắc chắn muốn XÓA VĨNH VIỄN tài khoản "${email}" khỏi hệ thống?`)) return;
+
+    try {
+        await fetch(`${API_BASE_URL}/users/${userId}`, { method: "DELETE" });
+    } catch (err) {
+        console.warn("Xóa từ Local...");
+    }
+
+    let localUsers = JSON.parse(localStorage.getItem("rentmapLocalUsers") || "[]");
+    localUsers = localUsers.filter(u => u.email !== email && u.id !== userId);
+    localStorage.setItem("rentmapLocalUsers", JSON.stringify(localUsers));
+
+    alert(`✅ Đã xóa thành công tài khoản ${email}`);
+    renderAdminUsersTab();
+}
+
+async function toggleBlockUser(userId, email, currentStatus) {
+    const newStatus = currentStatus === "BLOCKED" ? "ACTIVE" : "BLOCKED";
+    const actionName = newStatus === "BLOCKED" ? "KHÓA" : "MỞ KHÓA";
+
+    if (!confirm(`Bạn có muốn ${actionName} tài khoản ${email}?`)) return;
+
+    try {
+        await fetch(`${API_BASE_URL}/users/${userId}/status?status=${newStatus}`, { method: "PUT" });
+    } catch (err) {
+        console.warn("Lỗi kết nối API khóa...");
+    }
+
+    let localUsers = JSON.parse(localStorage.getItem("rentmapLocalUsers") || "[]");
+    const u = localUsers.find(item => item.email === email || item.id === userId);
+    if (u) u.status = newStatus;
+    localStorage.setItem("rentmapLocalUsers", JSON.stringify(localUsers));
+
+    renderAdminUsersTab();
+}
+
+function renderAdminReportsTab() {
+    const container = document.getElementById("adminReportsContainer");
+    if (!container) return;
+
+    let reports = JSON.parse(localStorage.getItem("rentmapReports") || "[]");
+    
+    const countEl = document.getElementById("adminTotalReports");
+    if (countEl) countEl.textContent = reports.length;
+
+    if (reports.length === 0) {
+        container.innerHTML = "<p style='padding:30px; text-align:center; color:#94a3b8;'>Chưa có báo cáo vi phạm nào.</p>";
+        return;
+    }
+
+    container.innerHTML = reports.map((r, index) => `
+        <div class="admin-card-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #334155; margin-bottom:10px;">
+            <div>
+                <h3 style="font-size:15px; font-weight:bold; color:#ef4444;">🚩 Báo cáo tin: ${escapeHTML(r.title || 'Bài đăng #' + r.propertyId)}</h3>
+                <p style="font-size:13px; color:#94a3b8; margin-top:4px;">Nội dung: <strong>${escapeHTML(r.reason || 'Bài đăng ảo / Sai giá')}</strong></p>
+            </div>
+            <button class="btn-reject" style="padding:8px 14px; background:#dc2626; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="deleteReport(${index})">
+                🗑️ Đã xử lý / Xóa
+            </button>
+        </div>
+    `).join("");
+}
+
+function deleteReport(index) {
+    let reports = JSON.parse(localStorage.getItem("rentmapReports") || "[]");
+    reports.splice(index, 1);
+    localStorage.setItem("rentmapReports", JSON.stringify(reports));
+    renderAdminReportsTab();
+}
+
+function reportCurrentProperty() {
+    if (!currentDetailPropertyId) return;
+    const property = onlineProperties.find(p => p.id == currentDetailPropertyId);
+    
+    let allReports = JSON.parse(localStorage.getItem("rentmapReports") || "[]");
+    allReports.push({
+        propertyId: currentDetailPropertyId,
+        title: property ? property.title : 'Phòng trọ',
+        reason: 'Tin đăng có dấu hiệu ảo / Sai số điện thoại'
+    });
+    localStorage.setItem("rentmapReports", JSON.stringify(allReports));
+    alert("🚩 Đã gửi báo cáo tin vi phạm tới Quản trị viên!");
+}
+
+async function adminApproveListing(id) {
+    try {
+        await fetch(`${API_BASE_URL}/listings/${id}/approve`, { method: "PUT" });
+    } catch (err) {
+        const p = onlineProperties.find(item => item.id == id);
+        if (p) p.status = "APPROVED";
+    }
+    alert("✅ Đã duyệt tin thành công!");
+    await fetchOnlineDatabase();
+}
+
+async function adminRejectListing(id) {
+    try {
+        await fetch(`${API_BASE_URL}/listings/${id}/reject`, { method: "PUT" });
+    } catch (err) {
+        const p = onlineProperties.find(item => item.id == id);
+        if (p) p.status = "REJECTED";
+    }
+    alert("❌ Đã từ chối tin đăng!");
+    await fetchOnlineDatabase();
+}
+
+async function toggleVipListing(id, isVip) {
+    try {
+        await fetch(`${API_BASE_URL}/listings/${id}/vip?isVip=${isVip}`, { method: "PUT" });
+    } catch (err) {
+        const p = onlineProperties.find(item => item.id == id);
+        if (p) p.isVip = isVip;
+    }
+    await fetchOnlineDatabase();
+}
+
+/* =====================================================
+   9. TIN CHO THUÊ CỦA TÔI
+===================================================== */
+function renderMyListings() {
+    const container = document.getElementById("myListingsContainer");
+    if (!container) return;
+    const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+    if (!user) return;
+
+    const listings = onlineProperties.filter(l => l.ownerEmail === user.email);
+    if (listings.length === 0) {
+        container.innerHTML = "<p style='padding:30px; text-align:center; color:#64748b;'>Bạn chưa đăng tin cho thuê nào.</p>";
+        return;
+    }
+
+    container.innerHTML = listings.map(l => `
+        <div class="my-listing-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:12px;">
+            <div>
+                <h3 style="font-size:16px; font-weight:bold;">${escapeHTML(l.title)} ${l.isVip ? '⭐ (Đã lên VIP)' : ''}</h3>
+                <div style="margin-top:6px; display:flex; gap:8px;">
+                    <span class="status-badge ${l.status === 'APPROVED' ? 'status-approved' : 'status-pending'}">Duyệt: ${l.status}</span>
+                    <span class="status-badge ${l.isRented ? 'status-rented' : 'status-approved'}">${l.isRented ? '🔒 ĐÃ CHO THUÊ' : '🟢 CÒN TRỐNG'}</span>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                ${!l.isVip ? `<button class="btn-vip" style="padding:8px 14px; background:#f59e0b; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="openPaymentModal('${l.id}')">💎 Nâng VIP</button>` : ''}
+                <button class="btn-search" style="padding:8px 14px; background:#2563eb; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="toggleRentedStatus('${l.id}', ${!l.isRented})">
+                    ${l.isRented ? '🔓 Đánh dấu Trống' : '🔒 Đánh dấu Đã Thuê'}
+                </button>
+            </div>
+        </div>
+    `).join("");
+}
+
+async function toggleRentedStatus(id, isRented) {
+    try {
+        await fetch(`${API_BASE_URL}/listings/${id}/rented?isRented=${isRented}`, { method: "PUT" });
+    } catch (err) {
+        const p = onlineProperties.find(item => item.id == id);
+        if (p) p.isRented = isRented;
+    }
+    await fetchOnlineDatabase();
+}
+
+/* =====================================================
+   10. HỒ SƠ CÁ NHÂN
+===================================================== */
+function showProfile() {
+    const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+    if (!user) return showPage("login");
+    
+    const isAdmin = user.role === "ADMIN";
+    document.getElementById("profileName").textContent = user.fullName || "---";
+    document.getElementById("profilePhone").textContent = user.phone || "Chưa cập nhật";
+    document.getElementById("profileEmail").textContent = user.email || "---";
+    
+    const roleTextEl = document.getElementById("profileRoleText");
+    if (roleTextEl) roleTextEl.textContent = isAdmin ? "Quản Trị Viên (Admin)" : "Thành viên";
+    
+    const badge = document.getElementById("profileRoleBadge");
+    if (badge) {
+        badge.textContent = isAdmin ? "🛡️ Quản Trị Viên" : "👤 Người dùng";
+        badge.className = isAdmin ? "role-badge admin" : "role-badge";
+    }
+
+    showPage("profile");
+}
+
+/* =====================================================
+   11. XEM CHI TIẾT & YÊU THÍCH & ĐẶT LỊCH HẸN
+===================================================== */
+function viewProperty(id) {
+    currentDetailPropertyId = id;
+    const property = onlineProperties.find(item => item.id == id);
+    if (!property) return;
+
+    property.views = (property.views || 0) + 1;
+    document.getElementById("propertyDetailTitle").textContent = property.title;
+    document.getElementById("propertyDetailLocation").textContent = "📍 " + (property.location || property.address);
+    document.getElementById("propertyDetailArea").textContent = property.area + "m²";
+    document.getElementById("propertyDetailPrice").textContent = formatPrice(property.price);
+    
+    const viewsEl = document.getElementById("propertyDetailViews");
+    if (viewsEl) viewsEl.textContent = property.views;
+
+    const descEl = document.getElementById("propertyDetailDescText");
+    if (descEl) descEl.textContent = property.description || "Chưa có mô tả chi tiết cho bài đăng này.";
+
+    const amenitiesEl = document.getElementById("propertyDetailAmenities");
+    if (amenitiesEl) {
+        let aStr = property.amenities;
+        if (Array.isArray(aStr)) aStr = aStr.join(", ");
+        amenitiesEl.textContent = aStr || "Khép kín";
+    }
+
+    const imgBox = document.getElementById("propertyDetailImgBox");
+    if (imgBox) {
+        const defaultImage = property.type === 'vinhome' 
+            ? "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80"
+            : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";
+
+        const displayImgUrl = property.imageUrl && property.imageUrl.trim() !== "" ? property.imageUrl : defaultImage;
+        imgBox.style.backgroundImage = `url('${displayImgUrl}')`;
+    }
+
+    showPage("propertyDetail");
+}
+
+function handleBooking(event) {
+    event.preventDefault();
+    const date = document.getElementById("bookingDate").value;
+    const time = document.getElementById("bookingTime").value;
+    alert(`🎉 Đặt lịch hẹn xem phòng thành công vào lúc ${time} ngày ${date}! Chủ trọ sẽ liên hệ lại với bạn.`);
+}
+
+function toggleFavorite(element, propertyId) {
+    let favorites = JSON.parse(localStorage.getItem("rentmapFavorites") || "[]");
+    if (favorites.includes(propertyId)) {
+        favorites = favorites.filter(id => id !== propertyId);
+        element.classList.remove("liked");
+        element.textContent = "♡";
+    } else {
+        favorites.push(propertyId);
+        element.classList.add("liked");
+        element.textContent = "♥";
+    }
+    localStorage.setItem("rentmapFavorites", JSON.stringify(favorites));
+}
+
+function showFavorites() { showPage("favorites"); }
+
+function renderFavoritesPage() {
+    const container = document.getElementById("favoritesContainer");
+    if (!container) return;
+
+    const favoriteIds = JSON.parse(localStorage.getItem("rentmapFavorites") || "[]");
+    const favoriteProperties = onlineProperties.filter(p => favoriteIds.includes(p.id.toString()));
+
+    if (favoriteProperties.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#6b7280; padding:30px;'>Chưa có tin yêu thích nào.</p>";
+        return;
+    }
+
+    container.innerHTML = favoriteProperties.map(p => `
+        <div class="my-listing-card" style="display:flex; justify-content:space-between; align-items:center; padding:15px; border:1px solid #eee; border-radius:12px; margin-bottom:10px;">
+            <div>
+                <h3 style="font-size:16px; font-weight:bold;">${escapeHTML(p.title)}</h3>
+                <p style="font-size:13px; color:#64748b; margin-top:4px;">📍 ${escapeHTML(p.location || p.address)} - 📐 ${p.area}m²</p>
+                <strong style="color:#dc2626; font-size:16px;">${formatPrice(p.price)}</strong>
+            </div>
+            <button class="btn-search" style="padding:8px 16px; background:#2563eb; color:white; border:none; border-radius:8px; cursor:pointer;" onclick="viewProperty('${p.id}')">Xem chi tiết</button>
+        </div>
+    `).join("");
+}
+
+/* =====================================================
+   12. THANH TOÁN MÔ PHỎNG NÂNG VIP
+===================================================== */
+function openPaymentModal(listingId) {
+    selectedVipListingId = listingId;
+    document.getElementById("paymentModal").classList.add("show");
+}
+
+function closePaymentModal() {
+    document.getElementById("paymentModal").classList.remove("show");
+}
+
+async function confirmVipPayment() {
+    if (!selectedVipListingId) return;
+    await toggleVipListing(selectedVipListingId, true);
+    closePaymentModal();
+    alert("🎉 Đã nâng cấp tin đăng lên VIP thành công!");
+    await fetchOnlineDatabase();
+}
+
+/* =====================================================
+   13. HÀM BỔ TRỢ (UTILITIES)
+===================================================== */
+function togglePassword(id) {
+    const input = document.getElementById(id);
+    if (input) input.type = input.type === "password" ? "text" : "password";
+}
+
+function toggleLoginPassword() {
+    const pwd = document.getElementById("loginPassword");
+    if (pwd) pwd.type = pwd.type === "password" ? "text" : "password";
+}
+
+function formatPrice(p) { return new Intl.NumberFormat("vi-VN").format(p || 0) + "đ"; }
+function escapeHTML(str) { const d = document.createElement("div"); d.textContent = str || ""; return d.innerHTML; }
+function checkPostLogin() { 
+    const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
+    if (!user) {
+        alert("Vui lòng đăng nhập trước khi đăng tin!");
+        return showPage("login");
+    }
+    showPage("post"); 
+}
