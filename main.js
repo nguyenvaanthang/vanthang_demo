@@ -5,6 +5,67 @@
 
 const API_BASE_URL = "http://localhost:8080/api";
 
+// Dữ liệu mẫu (Mock Data) hiển thị khi chưa bật Spring Boot Server
+const MOCK_PROPERTIES = [
+    {
+        id: "mock_1",
+        title: "Phòng trọ cao cấp Vinhomes Grand Park",
+        type: "vinhome",
+        price: 4500000,
+        area: 35,
+        location: "Quận 9, TP. Thủ Đức, TP.HCM",
+        address: "Quận 9, TP. Thủ Đức, TP.HCM",
+        description: "Phòng mới full nội thất, giờ giấc tự do, an ninh 24/7.",
+        lat: 10.8385,
+        lng: 106.8342,
+        imageUrl: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80",
+        amenities: "Wi-Fi, Điều hòa, Chỗ để xe, Thang máy",
+        status: "APPROVED",
+        isVip: true,
+        isRented: false,
+        views: 128,
+        ownerEmail: "nguyenvanthang@gmail.com"
+    },
+    {
+        id: "mock_2",
+        title: "Phòng trọ giá rẻ cho sinh viên Linh Trung",
+        type: "room",
+        price: 2500000,
+        area: 20,
+        location: "Phường Linh Trung, TP. Thủ Đức, TP.HCM",
+        address: "Phường Linh Trung, TP. Thủ Đức, TP.HCM",
+        description: "Gần trường đại học, điện nước giá dân, có ban công thoáng mát.",
+        lat: 10.8651,
+        lng: 106.7781,
+        imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80",
+        amenities: "Wi-Fi, Chỗ để xe",
+        status: "APPROVED",
+        isVip: false,
+        isRented: false,
+        views: 85,
+        ownerEmail: "sinhvien@gmail.com"
+    },
+    {
+        id: "mock_3",
+        title: "Căn hộ chung cư mini Cầu Giấy",
+        type: "room",
+        price: 3800000,
+        area: 28,
+        location: "Quận Cầu Giấy, Hà Nội",
+        address: "Quận Cầu Giấy, Hà Nội",
+        description: "Đầy đủ điều hòa, nóng lạnh, máy giặt chung, ô tô đỗ cửa.",
+        lat: 21.0285,
+        lng: 105.8542,
+        imageUrl: "",
+        amenities: "Wi-Fi, Điều hòa, Thang máy",
+        status: "APPROVED",
+        isVip: false,
+        isRented: false,
+        views: 42,
+        ownerEmail: "chutrohanoi@gmail.com"
+    }
+];
+
 let map = null;
 let markers = [];
 let userMarker = null;
@@ -57,17 +118,20 @@ function toggleDarkMode() {
 ===================================================== */
 async function fetchOnlineDatabase() {
     try {
-        // Đã sửa: Gọi chính xác endpoint /listings/approved trên Controller của bạn
         const response = await fetch(`${API_BASE_URL}/listings/approved`);
         if (response.ok) {
             onlineProperties = await response.json();
         } else {
-            // Thử endpoint fallback /listings nếu /approved không phản hồi
             const resFallback = await fetch(`${API_BASE_URL}/listings`);
-            if (resFallback.ok) onlineProperties = await resFallback.json();
+            if (resFallback.ok) {
+                onlineProperties = await resFallback.json();
+            } else {
+                throw new Error("Không thể tải dữ liệu từ API Server");
+            }
         }
     } catch (error) {
-        console.error("Lỗi kết nối Java Spring Boot Server (localhost:8080):", error);
+        console.warn("Chưa kết nối Backend Spring Boot (localhost:8080). Đang tải dữ liệu mẫu (Mock Data)...");
+        onlineProperties = MOCK_PROPERTIES;
     } finally {
         renderHomePageList();
         showAll();
@@ -935,7 +999,7 @@ function viewProperty(id) {
         imgBox.style.backgroundImage = `url('${displayImgUrl}')`;
     }
 
-    showPage("propertyDetail");
+    showPage("propertyDetailPage");
 }
 
 function handleBooking(event) {
