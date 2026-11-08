@@ -79,16 +79,16 @@ let uploadedBase64Image = "";
 let onlineProperties = [];
 
 /* =====================================================
-   1. KHỞI ĐỘNG VÀ MÀN HÌNH CHỜ (SPLASH SCREEN)
+   1. KHỞI ĐỘNG VÀ MÀN HÌNH CHỜ (SPLASH SCREEN & SLIDER)
 ===================================================== */
 document.addEventListener("DOMContentLoaded", function () {
     const splash = document.getElementById("rentmapSplash");
     if (splash) {
         setTimeout(function () {
             splash.classList.add("hide");
-            setTimeout(function () { 
+            setTimeout(function () {
                 splash.style.display = "none";
-                if (map) map.invalidateSize(); 
+                if (map) map.invalidateSize();
             }, 700);
         }, 1200);
     }
@@ -97,6 +97,7 @@ document.addEventListener("DOMContentLoaded", function () {
         document.body.classList.add("dark-mode");
     }
 
+    initHeroSlider();
     initMap();
     initRegister();
     initLogin();
@@ -105,6 +106,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
     fetchOnlineDatabase();
 });
+
+/* CHUYỂN SLIDE ẢNH NỀN HERO MỖI 5 GIÂY (5000ms) */
+function initHeroSlider() {
+    const slides = document.querySelectorAll('.hero-slide');
+    if (!slides || slides.length === 0) return;
+
+    let currentSlide = 0;
+
+    setInterval(() => {
+        slides[currentSlide].classList.remove('active');
+        currentSlide = (currentSlide + 1) % slides.length;
+        slides[currentSlide].classList.add('active');
+    }, 5000);
+}
 
 /* DARK MODE TOGGLE */
 function toggleDarkMode() {
@@ -206,10 +221,10 @@ function showVinhomeMap() { renderMarkers(getApprovedProperties().filter(p => p.
 function searchProperty() {
     const locationInput = document.getElementById("locationInput").value.trim().toLowerCase();
     const type = document.getElementById("propertyType").value;
-    
+
     const priceFromInput = document.getElementById("priceFrom").value;
     const priceToInput = document.getElementById("priceTo").value;
-    
+
     const priceFrom = priceFromInput !== "" ? Number(priceFromInput) : 0;
     const priceTo = priceToInput !== "" ? Number(priceToInput) : Infinity;
 
@@ -218,11 +233,11 @@ function searchProperty() {
 
     const results = approvedList.filter(p => {
         const locStr = (p.location || p.address || "").toLowerCase();
-        
-        const matchLocation = locationInput === "" || 
-                              locStr.includes(locationInput) || 
-                              locationInput.includes("hà nội") || 
-                              locationInput.includes("hồ chí minh");
+
+        const matchLocation = locationInput === "" ||
+            locStr.includes(locationInput) ||
+            locationInput.includes("hà nội") ||
+            locationInput.includes("hồ chí minh");
 
         const matchType = type === "all" || p.type === type;
         const pPrice = Number(p.price) || 0;
@@ -348,7 +363,7 @@ function filterNearMe() {
 
 function filterCheapPrice() {
     showPage('home');
-    
+
     const pTo = document.getElementById("priceTo");
     if (pTo) pTo.value = 3000000;
 
@@ -366,12 +381,12 @@ function filterCheapPrice() {
 
 function showPage(page) {
     document.querySelectorAll(".page-section").forEach(p => p.classList.remove("active-page"));
-    const targetMap = { 
-        home: "homePage", login: "loginPage", register: "registerPage", 
-        profile: "profilePage", myListings: "myListingsPage", post: "postPage", 
-        favorites: "favoritesPage", propertyDetail: "propertyDetailPage", admin: "adminPage" 
+    const targetMap = {
+        home: "homePage", login: "loginPage", register: "registerPage",
+        profile: "profilePage", myListings: "myListingsPage", post: "postPage",
+        favorites: "favoritesPage", propertyDetail: "propertyDetailPage", admin: "adminPage"
     };
-    
+
     if (targetMap[page] && document.getElementById(targetMap[page])) {
         document.getElementById(targetMap[page]).classList.add("active-page");
     }
@@ -632,7 +647,7 @@ function initPostProperty() {
 ===================================================== */
 async function renderAdminDashboard() {
     const listings = onlineProperties;
-    
+
     document.getElementById("adminTotalListings").textContent = listings.length;
     document.getElementById("adminPendingListings").textContent = listings.filter(l => l.status === "PENDING").length;
     document.getElementById("adminApprovedListings").textContent = listings.filter(l => l.status === "APPROVED").length;
@@ -642,7 +657,7 @@ async function renderAdminDashboard() {
 
 function switchAdminTab(tabName) {
     document.querySelectorAll(".admin-tab-btn").forEach(btn => btn.classList.remove("active"));
-    
+
     const listingsTab = document.getElementById("adminListingsTab");
     const usersTab = document.getElementById("adminUsersTab");
     const reportsTab = document.getElementById("adminReportsTab");
@@ -819,7 +834,7 @@ function renderAdminReportsTab() {
     if (!container) return;
 
     let reports = JSON.parse(localStorage.getItem("rentmapReports") || "[]");
-    
+
     const countEl = document.getElementById("adminTotalReports");
     if (countEl) countEl.textContent = reports.length;
 
@@ -851,7 +866,7 @@ function deleteReport(index) {
 function reportCurrentProperty() {
     if (!currentDetailPropertyId) return;
     const property = onlineProperties.find(p => p.id == currentDetailPropertyId);
-    
+
     let allReports = JSON.parse(localStorage.getItem("rentmapReports") || "[]");
     allReports.push({
         propertyId: currentDetailPropertyId,
@@ -944,15 +959,15 @@ async function toggleRentedStatus(id, isRented) {
 function showProfile() {
     const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
     if (!user) return showPage("login");
-    
+
     const isAdmin = user.role === "ADMIN";
     document.getElementById("profileName").textContent = user.fullName || "---";
     document.getElementById("profilePhone").textContent = user.phone || "Chưa cập nhật";
     document.getElementById("profileEmail").textContent = user.email || "---";
-    
+
     const roleTextEl = document.getElementById("profileRoleText");
     if (roleTextEl) roleTextEl.textContent = isAdmin ? "Quản Trị Viên (Admin)" : "Thành viên";
-    
+
     const badge = document.getElementById("profileRoleBadge");
     if (badge) {
         badge.textContent = isAdmin ? "🛡️ Quản Trị Viên" : "👤 Người dùng";
@@ -975,7 +990,7 @@ function viewProperty(id) {
     document.getElementById("propertyDetailLocation").textContent = "📍 " + (property.location || property.address);
     document.getElementById("propertyDetailArea").textContent = property.area + "m²";
     document.getElementById("propertyDetailPrice").textContent = formatPrice(property.price);
-    
+
     const viewsEl = document.getElementById("propertyDetailViews");
     if (viewsEl) viewsEl.textContent = property.views;
 
@@ -991,7 +1006,7 @@ function viewProperty(id) {
 
     const imgBox = document.getElementById("propertyDetailImgBox");
     if (imgBox) {
-        const defaultImage = property.type === 'vinhome' 
+        const defaultImage = property.type === 'vinhome'
             ? "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80"
             : "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80";
 
@@ -999,7 +1014,6 @@ function viewProperty(id) {
         imgBox.style.backgroundImage = `url('${displayImgUrl}')`;
     }
 
-    // ĐÃ SỬA CHUẨN: Chuyển "propertyDetailPage" thành "propertyDetail"
     showPage("propertyDetail");
 }
 
@@ -1089,18 +1103,20 @@ function toggleLoginPassword() {
 
 function formatPrice(p) { return new Intl.NumberFormat("vi-VN").format(p || 0) + "đ"; }
 function escapeHTML(str) { const d = document.createElement("div"); d.textContent = str || ""; return d.innerHTML; }
-function checkPostLogin() { 
+function checkPostLogin() {
     const user = JSON.parse(localStorage.getItem("rentmapCurrentUser"));
     if (!user) {
         alert("Vui lòng đăng nhập trước khi đăng tin!");
         return showPage("login");
     }
-    showPage("post"); 
+    showPage("post");
 }
 
 /* =====================================================
-   14. LOGIC XỬ LÝ TRỢ LÝ CHATBOT AI RENTMAP (BỔ SUNG MỚI)
+   14. HỆ THỐNG TRỢ LÝ AI SIÊU CẤP (4 TÍNH NĂNG ĐỈNH CAO)
 ===================================================== */
+const GEMINI_API_KEY = ""; // Điền API Key của bạn nếu có
+
 function toggleAiChat() {
     const chatBox = document.getElementById("aiChatBox");
     if (chatBox) chatBox.classList.toggle("show");
@@ -1118,45 +1134,174 @@ async function sendAiMessage() {
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
     const loadingId = "msg_" + Date.now();
-    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loadingId}">🤖 AI đang phân tích dữ liệu...</div>`;
+    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loadingId}">🤖 AI đang suy nghĩ & phân tích dữ liệu...</div>`;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
-    setTimeout(() => {
-        const botReply = generateLocalAiReply(userText);
+    setTimeout(async () => {
+        let botReply = "";
+
+        if (GEMINI_API_KEY && GEMINI_API_KEY.trim() !== "") {
+            botReply = await callGeminiApiReal(userText);
+        } else {
+            botReply = processSmartAiEngine(userText);
+        }
+
         const loadingEl = document.getElementById(loadingId);
-        if (loadingEl) loadingEl.innerText = botReply;
+        if (loadingEl) loadingEl.innerHTML = botReply;
         msgContainer.scrollTop = msgContainer.scrollHeight;
     }, 600);
 }
 
-function generateLocalAiReply(query) {
-    const q = query.toLowerCase();
+function processSmartAiEngine(query) {
+    const q = query.toLowerCase().trim();
     const approved = getApprovedProperties();
 
-    if (q.includes("rẻ") || q.includes("giá tốt") || q.includes("dưới") || q.includes("sinh viên")) {
-        const cheap = [...approved].sort((a,b) => (a.price || 0) - (b.price || 0))[0];
-        if (cheap) {
-            return `💡 Tôi gợi ý cho bạn phòng có giá tốt nhất: "${cheap.title}" tại ${cheap.location || cheap.address} với giá ${formatPrice(cheap.price)}/tháng.`;
+    if (q.includes("dưới") || q.includes("rẻ hơn") || q.includes("khoảng")) {
+        const matchPrice = q.match(/\d+/);
+        if (matchPrice) {
+            let maxPrice = parseInt(matchPrice[0]);
+            if (maxPrice < 100) maxPrice = maxPrice * 1000000;
+
+            document.getElementById("priceTo").value = maxPrice;
+            searchProperty();
+
+            return `🎯 **AI Action:** Tôi đã tự động đặt bộ lọc giá dưới **${formatPrice(maxPrice)}** và cập nhật lại danh sách phòng hiển thị phía sau cho bạn!`;
         }
     }
 
-    if (q.includes("vinhome") || q.includes("căn hộ") || q.includes("cao cấp")) {
-        const vinhomes = approved.filter(p => p.type === "vinhome");
-        if (vinhomes.length > 0) {
-            return `🏢 Hiện có ${vinhomes.length} căn Vinhome nổi bật, ví dụ: "${vinhomes[0].title}" giá ${formatPrice(vinhomes[0].price)}/tháng tại ${vinhomes[0].location || vinhomes[0].address}.`;
+    if (q.includes("xem phòng trọ") || q.includes("tìm phòng trọ")) {
+        filterCategoryFromHeader('room');
+        return `🏠 Tôi đã chuyển giao diện sang mục **Phòng Trọ** và lọc danh sách tương ứng cho bạn rồi nhé!`;
+    }
+
+    if (q.includes("xem vinhome") || q.includes("tìm vinhome") || q.includes("căn hộ")) {
+        filterCategoryFromHeader('vinhome');
+        return `🏢 Tôi đã chuyển giao diện sang danh mục **Căn hộ Vinhome** cho bạn rồi nhé!`;
+    }
+
+    if (q.includes("gần tôi") || q.includes("gần đây") || q.includes("vị trí của tôi")) {
+        filterNearMe();
+        return `📍 Tôi đã bật định vị vị trí của bạn trên bản đồ RentMap!`;
+    }
+
+    if (q.includes("hồ chí minh") || q.includes("hcm") || q.includes("tphcm") || q.includes("thủ đức") || q.includes("quận 9")) {
+        const hcmList = approved.filter(p => (p.location || p.address || "").toLowerCase().includes("thủ đức") || (p.location || p.address || "").toLowerCase().includes("hồ chí minh") || (p.location || p.address || "").toLowerCase().includes("tp.hcm"));
+        if (hcmList.length > 0) {
+            return `📍 Tại TP. Hồ Chí Minh / Thủ Đức hiện có ${hcmList.length} phòng nổi bật, ví dụ: **"${hcmList[0].title}"** giá ${formatPrice(hcmList[0].price)}/tháng.`;
+        }
+        return `📍 Các phòng tại TP.HCM đang được chủ nhà cập nhật liên tục trên bản đồ!`;
+    }
+
+    if (q.includes("hà nội") || q.includes("cầu giấy") || q.includes("bắc từ liêm")) {
+        const hnList = approved.filter(p => (p.location || p.address || "").toLowerCase().includes("hà nội") || (p.location || p.address || "").toLowerCase().includes("cầu giấy"));
+        if (hnList.length > 0) {
+            return `🏛️ Tại Hà Nội hiện có ${hnList.length} chỗ ở phù hợp, ví dụ: **"${hnList[0].title}"** giá ${formatPrice(hnList[0].price)}/tháng.`;
         }
     }
 
-    if (q.includes("trọ") || q.includes("phòng")) {
-        const rooms = approved.filter(p => p.type === "room");
-        if (rooms.length > 0) {
-            return `🏠 Hiện RentMap có ${rooms.length} phòng trọ phù hợp, ví dụ: "${rooms[0].title}" tại ${rooms[0].location || rooms[0].address} (${formatPrice(rooms[0].price)}/tháng).`;
-        }
+    if (q.includes("đăng tin") || q.includes("cho thuê") || q.includes("đăng bài")) {
+        return `📝 Để đăng tin, bạn bấm nút **"➕ Đăng tin"** trên thanh Menu, nhập thông tin, ghim vị trí bản đồ và bấm nút **"✨ Tạo mô tả bằng AI"** để AI tự viết bài giúp nhé!`;
     }
 
-    if (q.includes("chào") || q.includes("hi") || q.includes("hello")) {
-        return `🤖 Xin chào! Tôi là Trợ lý AI của RentMap. Bạn muốn tìm phòng trọ sinh viên hay căn hộ Vinhome cao cấp?`;
+    if (q.includes("vip") || q.includes("nạp") || q.includes("thanh toán") || q.includes("quét qr")) {
+        return `💎 Bạn muốn lên VIP? Hãy vào mục **"Tin của tôi"** trong Menu tài khoản và bấm nút **"💎 Nâng VIP"** để quét mã QR nhé!`;
     }
 
-    return `🤖 Chào bạn! Tôi là Trợ lý AI RentMap. Tôi có thể tìm phòng giúp bạn theo khoảng giá hoặc loại hình. Bạn hãy thử nhắn: "Tìm phòng giá rẻ" hoặc "Tìm căn hộ Vinhome" nhé!`;
+    if (q.includes("chào") || q.includes("hi") || q.includes("hello") || q.includes("ơi")) {
+        return `🤖 Xin chào! Tôi là Trợ lý AI RentMap. Bạn có thể nhờ tôi:
+• *"Tìm phòng dưới 4 triệu"* (Tôi sẽ tự lọc web)
+• *"Xem phòng trọ / Vinhome"* (Tôi sẽ chuyển tab giúp)
+• *"Tạo bài viết mô tả"* (Khi đăng tin cho thuê)`;
+    }
+
+    return `🤖 Bạn có thể thử các câu lệnh thông minh như:
+• **"Tìm phòng dưới 3 triệu"** ➔ AI tự nhập giá & tìm kiếm.
+• **"Xem căn hộ Vinhome"** ➔ AI tự chuyển danh mục.
+• **"Gần tôi"** ➔ AI tự kích hoạt bản đồ định vị.`;
+}
+
+function aiGenerateDescription() {
+    const type = document.getElementById("postType").value;
+    const title = document.getElementById("postTitle").value.trim();
+    const price = document.getElementById("postPrice").value;
+    const area = document.getElementById("postArea").value;
+    const address = document.getElementById("postAddress").value.trim();
+    const amenities = Array.from(document.querySelectorAll(".postAmenity:checked")).map(cb => cb.value).join(", ");
+
+    if (!title || !price || !area) {
+        alert("⚠️ Vui lòng điền trước Tiêu đề, Giá thuê và Diện tích để AI có đủ dữ liệu tạo bài viết nhé!");
+        return;
+    }
+
+    const typeName = type === "vinhome" ? "Căn hộ chung cư Vinhome cao cấp" : "Phòng trọ chính chủ";
+    const formattedPrice = formatPrice(Number(price));
+
+    const generatedText = `🔥 CHO THUÊ: ${title.toUpperCase()} 🔥
+
+📍 Địa chỉ: ${address || "Khu vực trung tâm, giao thông thuận tiện"}
+📐 Diện tích: ${area}m² thoáng mát, sạch sẽ, tối ưu không gian sống.
+💰 Giá thuê cực ưu đãi: ${formattedPrice}/tháng (Cam kết không phát sinh chi phí ẩn).
+
+⚡ TIỆN ÍCH NỔI BẬT:
+${amenities ? "✔ " + amenities.split(", ").join("\n✔ ") : "✔ Đầy đủ tiện ích cơ bản, không gian an ninh tốt."}
+
+🌟 ĐẶC ĐIỂM BẤT ĐỘNG SẢN:
+- ${typeName} thiết kế hiện đại, ánh sáng tự nhiên ngập tràn.
+- Giờ giấc đi lại tự do, an ninh đảm bảo 24/7.
+- Vị trí đắc địa gần trường học, chợ, siêu thị và trạm xe bus.
+
+📞 Liên hệ chính chủ ngay để hẹn lịch xem phòng trực tiếp!`;
+
+    const descInput = document.getElementById("postDescription");
+    if (descInput) {
+        descInput.value = generatedText;
+        alert("✨ AI đã tự động soạn thảo xong bài viết mô tả chuyên nghiệp cho bạn!");
+    }
+}
+
+function aiSuggestPricing() {
+    const type = document.getElementById("postType").value;
+    const area = Number(document.getElementById("postArea").value) || 20;
+
+    let suggestedPrice = 0;
+    let minRange = 0;
+    let maxRange = 0;
+
+    if (type === "vinhome") {
+        suggestedPrice = area * 150000;
+        minRange = suggestedPrice * 0.9;
+        maxRange = suggestedPrice * 1.25;
+    } else {
+        suggestedPrice = area * 110000;
+        minRange = suggestedPrice * 0.85;
+        maxRange = suggestedPrice * 1.15;
+    }
+
+    suggestedPrice = Math.round(suggestedPrice / 100000) * 100000;
+    minRange = Math.round(minRange / 100000) * 100000;
+    maxRange = Math.round(maxRange / 100000) * 100000;
+
+    document.getElementById("postPrice").value = suggestedPrice;
+
+    alert(`💡 GỢI Ý GIÁ TỪ AI RENTMAP:
+- Mức giá đề xuất lý tưởng: ${formatPrice(suggestedPrice)}/tháng.
+- Khoảng giá phù hợp khu vực: ${formatPrice(minRange)} - ${formatPrice(maxRange)}/tháng (Dựa trên diện tích ${area}m²).
+
+AI đã tự động điền mức giá đề xuất vào ô giá thuê cho bạn!`);
+}
+
+async function callGeminiApiReal(userPrompt) {
+    try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: userPrompt }] }]
+            })
+        });
+        const data = await res.json();
+        return data.candidates[0].content.parts[0].text;
+    } catch (e) {
+        return processSmartAiEngine(userPrompt);
+    }
 }
