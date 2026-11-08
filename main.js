@@ -1097,3 +1097,66 @@ function checkPostLogin() {
     }
     showPage("post"); 
 }
+
+/* =====================================================
+   14. LOGIC XỬ LÝ TRỢ LÝ CHATBOT AI RENTMAP (BỔ SUNG MỚI)
+===================================================== */
+function toggleAiChat() {
+    const chatBox = document.getElementById("aiChatBox");
+    if (chatBox) chatBox.classList.toggle("show");
+}
+
+async function sendAiMessage() {
+    const inputEl = document.getElementById("aiInput");
+    const msgContainer = document.getElementById("aiChatMessages");
+    const userText = inputEl.value.trim();
+
+    if (!userText) return;
+
+    msgContainer.innerHTML += `<div class="ai-msg user">${escapeHTML(userText)}</div>`;
+    inputEl.value = "";
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    const loadingId = "msg_" + Date.now();
+    msgContainer.innerHTML += `<div class="ai-msg bot" id="${loadingId}">🤖 AI đang phân tích dữ liệu...</div>`;
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    setTimeout(() => {
+        const botReply = generateLocalAiReply(userText);
+        const loadingEl = document.getElementById(loadingId);
+        if (loadingEl) loadingEl.innerText = botReply;
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+    }, 600);
+}
+
+function generateLocalAiReply(query) {
+    const q = query.toLowerCase();
+    const approved = getApprovedProperties();
+
+    if (q.includes("rẻ") || q.includes("giá tốt") || q.includes("dưới") || q.includes("sinh viên")) {
+        const cheap = [...approved].sort((a,b) => (a.price || 0) - (b.price || 0))[0];
+        if (cheap) {
+            return `💡 Tôi gợi ý cho bạn phòng có giá tốt nhất: "${cheap.title}" tại ${cheap.location || cheap.address} với giá ${formatPrice(cheap.price)}/tháng.`;
+        }
+    }
+
+    if (q.includes("vinhome") || q.includes("căn hộ") || q.includes("cao cấp")) {
+        const vinhomes = approved.filter(p => p.type === "vinhome");
+        if (vinhomes.length > 0) {
+            return `🏢 Hiện có ${vinhomes.length} căn Vinhome nổi bật, ví dụ: "${vinhomes[0].title}" giá ${formatPrice(vinhomes[0].price)}/tháng tại ${vinhomes[0].location || vinhomes[0].address}.`;
+        }
+    }
+
+    if (q.includes("trọ") || q.includes("phòng")) {
+        const rooms = approved.filter(p => p.type === "room");
+        if (rooms.length > 0) {
+            return `🏠 Hiện RentMap có ${rooms.length} phòng trọ phù hợp, ví dụ: "${rooms[0].title}" tại ${rooms[0].location || rooms[0].address} (${formatPrice(rooms[0].price)}/tháng).`;
+        }
+    }
+
+    if (q.includes("chào") || q.includes("hi") || q.includes("hello")) {
+        return `🤖 Xin chào! Tôi là Trợ lý AI của RentMap. Bạn muốn tìm phòng trọ sinh viên hay căn hộ Vinhome cao cấp?`;
+    }
+
+    return `🤖 Chào bạn! Tôi là Trợ lý AI RentMap. Tôi có thể tìm phòng giúp bạn theo khoảng giá hoặc loại hình. Bạn hãy thử nhắn: "Tìm phòng giá rẻ" hoặc "Tìm căn hộ Vinhome" nhé!`;
+}

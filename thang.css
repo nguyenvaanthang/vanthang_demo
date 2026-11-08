@@ -612,3 +612,27 @@ body.dark-mode .property-detail-facts {
         min-height: 260px !important;
     }
 }
+
+/* =====================================================
+   GIAO DIỆN KÍCH THƯỚC & HOẠT HỌA CHATBOT AI (BỔ SUNG MỚI)
+===================================================== */
+.ai-chat-widget { position: fixed; bottom: 80px; right: 20px; z-index: 9999; }
+.ai-chat-toggle { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 12px 20px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); transition: transform 0.2s; }
+.ai-chat-toggle:hover { transform: scale(1.05); }
+.ai-chat-box { display: none; width: 340px; height: 450px; background: white; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); flex-direction: column; overflow: hidden; position: absolute; bottom: 50px; right: 0; border: 1px solid #e2e8f0; }
+.ai-chat-box.show { display: flex; }
+.ai-chat-header { background: #2563eb; color: white; padding: 12px 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+.ai-chat-header button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; }
+.ai-chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: #f8fafc; }
+.ai-msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; }
+.ai-msg.bot { background: white; color: #1e293b; border: 1px solid #e2e8f0; align-self: flex-start; }
+.ai-msg.user { background: #2563eb; color: white; align-self: flex-end; }
+.ai-chat-input { display: flex; padding: 8px; background: white; border-top: 1px solid #e2e8f0; }
+.ai-chat-input input { flex: 1; border: 1px solid #cbd5e1; padding: 8px; border-radius: 8px; outline: none; }
+.ai-chat-input button { background: #2563eb; color: white; border: none; padding: 8px 14px; margin-left: 6px; border-radius: 8px; cursor: pointer; }
+
+body.dark-mode .ai-chat-box { background: #1e293b !important; border-color: #334155 !important; }
+body.dark-mode .ai-chat-messages { background: #0f172a !important; }
+body.dark-mode .ai-msg.bot { background: #1e293b !important; color: #f8fafc !important; border-color: #334155 !important; }
+body.dark-mode .ai-chat-input { background: #1e293b !important; border-color: #334155 !important; }
+body.dark-mode .ai-chat-input input { background: #0f172a !important; color: white !important; border-color: #334155 !important; }

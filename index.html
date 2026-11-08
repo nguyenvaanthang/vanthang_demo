@@ -617,6 +617,25 @@
     </div>
 </div>
 
+<!-- ==================== CỬA SỔ CHATBOT AI (BỔ SUNG MỚI) ==================== -->
+<div id="aiChatWidget" class="ai-chat-widget">
+    <button id="aiChatToggle" class="ai-chat-toggle" onclick="toggleAiChat()">🤖 Trợ lý AI</button>
+
+    <div id="aiChatBox" class="ai-chat-box">
+        <div class="ai-chat-header">
+            <span>🤖 RentMap AI Assistant</span>
+            <button onclick="toggleAiChat()">✕</button>
+        </div>
+        <div id="aiChatMessages" class="ai-chat-messages">
+            <div class="ai-msg bot">Xin chào! Tôi là trợ lý AI của RentMap. Bạn muốn tìm phòng trọ hay căn hộ ở khu vực nào?</div>
+        </div>
+        <div class="ai-chat-input">
+            <input type="text" id="aiInput" placeholder="Hỏi AI (VD: Tìm phòng dưới 4 triệu...)" onkeypress="if(event.key==='Enter') sendAiMessage()">
+            <button onclick="sendAiMessage()">Gửi</button>
+        </div>
+    </div>
+</div>
+
 <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
 <nav class="bottom-nav">
     <a href="#" data-nav="home" class="active" onclick="showPage('home'); return false;">
