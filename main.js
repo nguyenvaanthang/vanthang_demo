@@ -999,7 +999,8 @@ function viewProperty(id) {
         imgBox.style.backgroundImage = `url('${displayImgUrl}')`;
     }
 
-    showPage("propertyDetailPage");
+    // ĐÃ SỬA CHUẨN: Chuyển "propertyDetailPage" thành "propertyDetail"
+    showPage("propertyDetail");
 }
 
 function handleBooking(event) {
@@ -1074,12 +1075,16 @@ async function confirmVipPayment() {
 ===================================================== */
 function togglePassword(id) {
     const input = document.getElementById(id);
-    if (input) input.type = input.type === "password" ? "text" : "password";
+    if (input) {
+        input.type = input.type === "password" ? "text" : "password";
+    }
 }
 
 function toggleLoginPassword() {
     const pwd = document.getElementById("loginPassword");
-    if (pwd) pwd.type = pwd.type === "password" ? "text" : "password";
+    if (pwd) {
+        pwd.type = pwd.type === "password" ? "text" : "password";
+    }
 }
 
 function formatPrice(p) { return new Intl.NumberFormat("vi-VN").format(p || 0) + "đ"; }
